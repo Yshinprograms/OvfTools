@@ -1,0 +1,31 @@
+﻿<Window x:Class="OvfViewer.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="OVF Viewer" Height="450" Width="800">
+    <Grid Margin="10">
+        <!-- We use a DockPanel to easily arrange items -->
+        <DockPanel>
+            <!-- Top section for the button -->
+            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
+                <Button Content="Load OVF File" 
+                        Width="120" 
+                        Height="30"
+                        Command="{Binding LoadFileCommand}"/>
+            </StackPanel>
+
+            <!-- A status bar at the bottom -->
+            <StatusBar DockPanel.Dock="Bottom">
+                <StatusBarItem>
+                    <!-- This TextBlock's Text property is bound to our new JobName property -->
+                    <TextBlock Text="{Binding JobName}" FontWeight="Bold" />
+                </StatusBarItem>
+            </StatusBar>
+
+            <!-- The rest of the space will be for our viewer content later -->
+            <Grid Background="LightGray">
+                <TextBlock Text="Viewer Area" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="DimGray"/>
+            </Grid>
+
+        </DockPanel>
+    </Grid>
+</Window>

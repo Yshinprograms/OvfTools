@@ -1,0 +1,58 @@
+# .NET / C# / Visual Studio
+#
+# General
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+build/
+bld/
+[Bb]in/
+[Oo]bj/
+publish/
+
+# Visual Studio 2019+ cache/temporary files
+.vs/
+
+# NuGet
+*.nupkg
+*.nuget.props
+*.nuget.targets
+packages/
+
+# User-specific files
+*.[Cc]ache
+*.[Ss]ettings.user
+
+# Roslyn
+*.ruleset
+
+# Test results
+*.trx
+*.vsmdi
+*.testsettings
+TestResults/
+
+# Dotnet local tool manifests
+.config/
+
+# Rider / ReSharper specific
+*.sln.iml
+*_i.ico
+*_p.ico
+*.pidb
+*.suo
+*.user
+*.resharper
+*.[Rr]ider.user
+
+# Specific to our projects (just in case)
+*.modified.ovf

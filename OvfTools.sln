@@ -1,0 +1,43 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36202.13
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OvfParameterModifier", "OvfParameterModifier\OvfParameterModifier.csproj", "{F39B041E-02CD-4737-8D76-64D9425E73ED}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OvfParameterModifierTests", "OvfParameterModifierTests\OvfParameterModifierTests.csproj", "{CACCC3C2-9CCC-42F8-9A8E-28C965146A33}"
+	ProjectSection(ProjectDependencies) = postProject
+		{F39B041E-02CD-4737-8D76-64D9425E73ED} = {F39B041E-02CD-4737-8D76-64D9425E73ED}
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OvfViewer", "OvfViewer\OvfViewer.csproj", "{A0E91472-420D-4129-9509-C841716D8C5B}"
+	ProjectSection(ProjectDependencies) = postProject
+		{F39B041E-02CD-4737-8D76-64D9425E73ED} = {F39B041E-02CD-4737-8D76-64D9425E73ED}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F39B041E-02CD-4737-8D76-64D9425E73ED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F39B041E-02CD-4737-8D76-64D9425E73ED}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F39B041E-02CD-4737-8D76-64D9425E73ED}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F39B041E-02CD-4737-8D76-64D9425E73ED}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CACCC3C2-9CCC-42F8-9A8E-28C965146A33}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CACCC3C2-9CCC-42F8-9A8E-28C965146A33}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CACCC3C2-9CCC-42F8-9A8E-28C965146A33}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CACCC3C2-9CCC-42F8-9A8E-28C965146A33}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A0E91472-420D-4129-9509-C841716D8C5B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A0E91472-420D-4129-9509-C841716D8C5B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A0E91472-420D-4129-9509-C841716D8C5B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A0E91472-420D-4129-9509-C841716D8C5B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DE4B3D55-B4AC-4550-B907-8025E6DF46A6}
+	EndGlobalSection
+EndGlobal
