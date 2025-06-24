@@ -7,4 +7,13 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="netDxf" Version="2023.11.10" />
+    <PackageReference Include="OpenVectorFormat" Version="1.7.1" />
+  </ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\OvfParameterModifier\OvfParameterModifier.csproj" />
+	</ItemGroup>
+
 </Project>
