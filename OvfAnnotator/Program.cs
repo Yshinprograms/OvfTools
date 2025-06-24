@@ -1,8 +1,9 @@
-﻿// Program.cs - Now with more convenience and flair!
+﻿// Program.cs
 
 using CommandLine;
 using OpenVectorFormat.OVFReaderWriter;
 using OvfAnnotator;
+using ShellProgressBar;
 using System;
 using System.IO;
 
@@ -13,63 +14,111 @@ public class Program {
     }
 
     public static void RunOptionsAndReturnExitCode(Options options) {
-        // --- NEW: Our Awesome Welcome Banner! ---
         Console.WriteLine("=================================================");
-        Console.WriteLine("||                OVF Annotator                ||");
+        Console.WriteLine("||              OVF Annotator                  ||");
         Console.WriteLine("=================================================");
         Console.WriteLine();
 
         try {
-            // 1. Validate inputs and Handle Paths
-            if (!File.Exists(options.InputFile)) {
-                throw new FileNotFoundException("Input OVF file not found.", options.InputFile);
-            }
+            // --- Preparation Stage ---
+            if (!File.Exists(options.InputFile)) throw new FileNotFoundException("Input OVF file not found.", options.InputFile);
 
-            // --- NEW: Smart Default Path Logic! ---
-            string outputDirectory = options.OutputDirectory;
-            if (string.IsNullOrWhiteSpace(outputDirectory)) {
-                // The user didn't provide an output path, so we'll create one!
-                string inputDirectory = Path.GetDirectoryName(options.InputFile);
-                string inputFileName = Path.GetFileNameWithoutExtension(options.InputFile);
-                outputDirectory = Path.Combine(inputDirectory, $"{inputFileName}_DXF_Output");
-                Console.WriteLine("No output directory specified. Using smart default:");
-            }
-
+            string outputDirectory = GetOutputDirectory(options);
             Directory.CreateDirectory(outputDirectory);
 
             Console.WriteLine($"Processing file: {options.InputFile}");
             Console.WriteLine($"Output will be saved to: {outputDirectory}");
 
-            // 2. Read the OVF File
             using var reader = new OVFFileReader();
             reader.OpenJob(options.InputFile);
             var jobShell = reader.JobShell;
-            int totalLayers = jobShell.NumWorkPlanes;
-            Console.WriteLine($"File contains {totalLayers} layers.");
+            int totalLayersInFile = jobShell.NumWorkPlanes;
+
+            // --- NEW: Parse the layer range ---
+            (int startLayer, int endLayer) = ParseLayerRange(options.LayerRange, totalLayersInFile);
+            int layersToProcessCount = endLayer - startLayer + 1;
+            Console.WriteLine($"Found {totalLayersInFile} layers. Will process layers {startLayer} through {endLayer}.");
 
             var converter = new OvfToDxfConverter();
 
-            // 3. THE BIG LOOP (unchanged, but now uses our new outputDirectory variable)
-            for (int i = 0; i < totalLayers; i++) {
-                Console.WriteLine($"--> Processing Layer {i}...");
-                var workPlane = reader.GetWorkPlane(i);
+            // --- NEW: Summary Report Counters ---
+            int totalBlocksProcessed = 0;
 
-                string inputFileName = Path.GetFileNameWithoutExtension(options.InputFile);
-                string outputFileName = $"{inputFileName}_Layer_{i}.dxf";
-                string fullOutputPath = Path.Combine(outputDirectory, outputFileName);
+            // --- Processing Stage with Progress Bar! ---
+            var progressBarOptions = new ProgressBarOptions {
+                ForegroundColor = ConsoleColor.Yellow,
+                BackgroundColor = ConsoleColor.DarkGray,
+                ProgressCharacter = '█',
+                ProgressBarOnBottom = true
+            };
 
-                var dxfDocument = converter.Convert(workPlane);
-                dxfDocument.Save(fullOutputPath);
-                Console.WriteLine($"    Successfully saved: {outputFileName}");
+            using (var pbar = new ProgressBar(layersToProcessCount, "Starting...", progressBarOptions)) {
+                for (int i = startLayer; i <= endLayer; i++) {
+                    var workPlane = reader.GetWorkPlane(i);
+                    totalBlocksProcessed += workPlane.VectorBlocks.Count;
+
+                    string inputFileName = Path.GetFileNameWithoutExtension(options.InputFile);
+                    string outputFileName = $"{inputFileName}_Layer_{i}.dxf";
+                    string fullOutputPath = Path.Combine(outputDirectory, outputFileName);
+
+                    var dxfDocument = converter.Convert(workPlane);
+                    dxfDocument.Save(fullOutputPath);
+
+                    // Update the progress bar!
+                    pbar.Tick($"Processed Layer {i} -> {outputFileName}");
+                }
             }
 
+            // --- Final Summary Report ---
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("\nProcessing complete! All layers have been converted.");
+            Console.WriteLine("\n=================================================");
+            Console.WriteLine("             Processing Complete!");
+            Console.WriteLine("=================================================");
+            Console.WriteLine($"       Total Layers Processed: {layersToProcessCount}");
+            Console.WriteLine($"        Total Vector Blocks: {totalBlocksProcessed}");
+            Console.WriteLine($"  Total DXF Files Created: {layersToProcessCount}");
+            Console.WriteLine($"         Output Location: {outputDirectory}");
+            Console.WriteLine("=================================================");
             Console.ResetColor();
         } catch (Exception ex) {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"\nAn error occurred: {ex.Message}");
             Console.ResetColor();
         }
+    }
+
+    // Helper to keep path logic clean
+    private static string GetOutputDirectory(Options options) {
+        if (!string.IsNullOrWhiteSpace(options.OutputDirectory)) {
+            return options.OutputDirectory;
+        }
+
+        string inputDirectory = Path.GetDirectoryName(options.InputFile);
+        string inputFileName = Path.GetFileNameWithoutExtension(options.InputFile);
+        return Path.Combine(inputDirectory, $"{inputFileName}_DXF_Output");
+    }
+
+    // NEW HELPER: Our brilliant layer range parser!
+    private static (int, int) ParseLayerRange(string rangeString, int maxLayers) {
+        // Default: process all layers (0-indexed)
+        if (string.IsNullOrWhiteSpace(rangeString)) {
+            return (0, maxLayers - 1);
+        }
+
+        // Case for a single number (e.g., --layers "5")
+        if (int.TryParse(rangeString, out int singleLayer)) {
+            if (singleLayer < 0 || singleLayer >= maxLayers) throw new ArgumentOutOfRangeException($"Layer index {singleLayer} is out of the valid range (0-{maxLayers - 1}).");
+            return (singleLayer, singleLayer);
+        }
+
+        // Case for a range (e.g., --layers "10-20")
+        var parts = rangeString.Split('-');
+        if (parts.Length == 2 && int.TryParse(parts[0], out int start) && int.TryParse(parts[1], out int end)) {
+            if (start > end) throw new ArgumentException("Start layer cannot be greater than end layer in the specified range.");
+            if (start < 0 || end >= maxLayers) throw new ArgumentOutOfRangeException($"Layer range {start}-{end} is out of the valid range (0-{maxLayers - 1}).");
+            return (start, end);
+        }
+
+        throw new FormatException($"The layer range format '{rangeString}' is invalid. Please use a format like \"10-20\" or \"5\".");
     }
 }
