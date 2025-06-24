@@ -15,6 +15,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OvfViewer", "OvfViewer\OvfV
 		{F39B041E-02CD-4737-8D76-64D9425E73ED} = {F39B041E-02CD-4737-8D76-64D9425E73ED}
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OvfParameterModifier.Console", "OvfParameterModifier.Console\OvfParameterModifier.Console.csproj", "{B93B1C83-6134-456D-986A-091EC8BBBC6F}"
+	ProjectSection(ProjectDependencies) = postProject
+		{F39B041E-02CD-4737-8D76-64D9425E73ED} = {F39B041E-02CD-4737-8D76-64D9425E73ED}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +38,10 @@ Global
 		{A0E91472-420D-4129-9509-C841716D8C5B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A0E91472-420D-4129-9509-C841716D8C5B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A0E91472-420D-4129-9509-C841716D8C5B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B93B1C83-6134-456D-986A-091EC8BBBC6F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B93B1C83-6134-456D-986A-091EC8BBBC6F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B93B1C83-6134-456D-986A-091EC8BBBC6F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B93B1C83-6134-456D-986A-091EC8BBBC6F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

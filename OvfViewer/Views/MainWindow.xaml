@@ -1,31 +1,147 @@
-﻿<Window x:Class="OvfViewer.Views.MainWindow"
+<Window x:Class="OvfViewer.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="OVF Viewer" Height="450" Width="800">
-    <Grid Margin="10">
-        <!-- We use a DockPanel to easily arrange items -->
-        <DockPanel>
-            <!-- Top section for the button -->
-            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
-                <Button Content="Load OVF File" 
-                        Width="120" 
-                        Height="30"
-                        Command="{Binding LoadFileCommand}"/>
-            </StackPanel>
+        xmlns:viewModels="clr-namespace:OvfViewer.ViewModels"
+        Title="OVF Viewer" Height="700" Width="1000"
+        WindowStartupLocation="CenterScreen">
+    <Window.DataContext>
+        <viewModels:MainViewModel />
+    </Window.DataContext>
 
-            <!-- A status bar at the bottom -->
-            <StatusBar DockPanel.Dock="Bottom">
-                <StatusBarItem>
-                    <!-- This TextBlock's Text property is bound to our new JobName property -->
-                    <TextBlock Text="{Binding JobName}" FontWeight="Bold" />
-                </StatusBarItem>
-            </StatusBar>
+    <Grid Margin="5">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-            <!-- The rest of the space will be for our viewer content later -->
-            <Grid Background="LightGray">
-                <TextBlock Text="Viewer Area" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="DimGray"/>
-            </Grid>
+        <!-- Top Toolbar -->
+        <ToolBar Grid.Row="0" Margin="0,0,0,5">
+            <Button Content="Load OVF File" 
+                    Command="{Binding LoadFileCommand}"
+                    Padding="10,3"
+                    MinWidth="100"/>
+            <Separator />
+            <Button x:Name="ZoomInButton" 
+                    Content="Zoom In" 
+                    Padding="8,3"
+                    Click="ZoomInButton_Click"
+                    ToolTip="Zoom In (or use mouse wheel up)"/>
+            <Button x:Name="ZoomOutButton" 
+                    Content="Zoom Out" 
+                    Padding="8,3"
+                    Click="ZoomOutButton_Click"
+                    ToolTip="Zoom Out (or use mouse wheel down)"/>
+            <Button x:Name="FitToScreenButton" 
+                    Content="Fit to Screen" 
+                    Padding="8,3"
+                    Click="FitToScreenButton_Click"
+                    ToolTip="Fit content to screen"/>
+        </ToolBar>
 
-        </DockPanel>
+        <!-- Main Content -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="250"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Layer List -->
+            <Border Grid.Column="0" 
+                    BorderThickness="1" 
+                    BorderBrush="LightGray"
+                    CornerRadius="3"
+                    Padding="5">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="Layers" 
+                               FontWeight="Bold" 
+                               Margin="0,0,0,5"
+                               HorizontalAlignment="Center"/>
+
+                    <ListBox Grid.Row="1"
+                             ItemsSource="{Binding LayerSummaries}"
+                             SelectedItem="{Binding SelectedLayerSummary}"
+                             BorderThickness="0"
+                             Background="Transparent"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="5,3"/>
+                                <Setter Property="Margin" Value="0,1"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="#E1F5FE"/>
+                                        <Setter Property="Foreground" Value="#01579B"/>
+                                        <Setter Property="FontWeight" Value="SemiBold"/>
+                                    </Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#F5F5F5"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <GridSplitter Grid.Column="1" 
+                          Width="5" 
+                          HorizontalAlignment="Stretch"
+                          Background="Transparent"/>
+
+            <!-- Canvas Area -->
+            <Border Grid.Column="2" 
+                    BorderThickness="1" 
+                    BorderBrush="LightGray"
+                    CornerRadius="3"
+                    Background="White">
+                <Border BorderBrush="DarkGray" BorderThickness="1" Background="White" CornerRadius="3">
+                    <Grid x:Name="CanvasGrid" Background="White">
+                        <Canvas x:Name="VectorCanvas"
+                                ClipToBounds="True"
+                                Background="White"
+                                MouseWheel="VectorCanvas_MouseWheel"
+                                MouseLeftButtonDown="VectorCanvas_MouseLeftButtonDown"
+                                MouseLeftButtonUp="VectorCanvas_MouseLeftButtonUp"
+                                MouseMove="VectorCanvas_MouseMove"
+                                SizeChanged="VectorCanvas_SizeChanged"
+                                RenderTransformOrigin="0.5,0.5" Margin="0,0,0,10">
+                            <!-- Vector content will be added here programmatically -->
+                            <TextBlock x:Name="EmptyStateText"
+                                       Text="Load an OVF file and select a layer to view vectors"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Foreground="DarkGray"
+                                       FontStyle="Italic"
+                                       FontSize="14"/>
+                        </Canvas>
+                    </Grid>
+                </Border>
+            </Border>
+        </Grid>
+
+        <!-- Status Bar -->
+        <StatusBar Grid.Row="2" Margin="0,5,0,0">
+            <StatusBarItem>
+                <TextBlock Text="{Binding JobName}" 
+                           FontWeight="SemiBold"
+                           Margin="5,0"/>
+            </StatusBarItem>
+            <Separator/>
+            <StatusBarItem x:Name="StatusMessage" Content="Ready" />
+            <Separator/>
+            <StatusBarItem x:Name="ZoomLevel" Content="Zoom: 100%" />
+            <Separator/>
+            <StatusBarItem x:Name="CoordinatesDisplay" Content="X: 0.00, Y: 0.00" />
+            <StatusBarItem HorizontalAlignment="Right">
+                <TextBlock Text="OVF Viewer v1.0" Foreground="Gray" FontStyle="Italic" />
+            </StatusBarItem>
+        </StatusBar>
     </Grid>
 </Window>
