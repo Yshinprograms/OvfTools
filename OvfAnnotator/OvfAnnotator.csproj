@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="CommandLineParser" Version="2.9.1" />
     <PackageReference Include="netDxf" Version="2023.11.10" />
     <PackageReference Include="OpenVectorFormat" Version="1.7.1" />
   </ItemGroup>

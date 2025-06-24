@@ -1,37 +1,66 @@
-﻿// Program.cs
-using netDxf;
+﻿// Program.cs - The Final Version!
+
+using CommandLine;
 using OpenVectorFormat.OVFReaderWriter;
-using OvfAnnotator; // NEW! We need to tell Program.cs it can use our new class!
+using OvfAnnotator;
+using System;
+using System.IO;
 
-// --- Configuration ---
-const string ovfInputPath = @"C:\Users\pin20\Downloads\SIMTech_Internship\RTC6_Controller\RTC6_Controller\x64\Debug\valid_3_layers.ovf";
-const string dxfOutputPath = @"C:\Users\pin20\Downloads\SIMTech_Internship\RTC6_Controller\RTC6_Controller\x64\Debug\dxfLayer1_3_layers.dxf";
-const int layerToProcess = 0;
+public class Program {
+    public static void Main(string[] args) {
+        // This is the magic line from the CommandLineParser library.
+        // It takes the command-line arguments (`args`), tries to match them
+        // to our `Options` class, and then decides what to do.
+        Parser.Default.ParseArguments<Options>(args)
+               .WithParsed(RunOptionsAndReturnExitCode);
+    }
 
-Console.WriteLine("--- OVF to DXF Annotator (Phase 2: Refactored!) ---");
+    // This method only runs if the command-line arguments were parsed successfully!
+    // It receives a populated `options` object with the user's input.
+    public static void RunOptionsAndReturnExitCode(Options options) {
+        Console.WriteLine("--- OVF to DXF Annotator ---");
+        try {
+            // 1. Validate inputs
+            if (!File.Exists(options.InputFile)) {
+                throw new FileNotFoundException("Input OVF file not found.", options.InputFile);
+            }
+            // Create the output directory if it doesn't exist
+            Directory.CreateDirectory(options.OutputDirectory);
 
-try {
-    // 1. Read the OVF File
-    Console.WriteLine($"Reading OVF file: {ovfInputPath}");
-    using var reader = new OVFFileReader();
-    reader.OpenJob(ovfInputPath);
-    var workPlane = reader.GetWorkPlane(layerToProcess);
-    Console.WriteLine($"Successfully loaded Layer {layerToProcess} with {workPlane.VectorBlocks.Count} vector blocks.");
+            Console.WriteLine($"Processing file: {options.InputFile}");
+            Console.WriteLine($"Output will be saved to: {options.OutputDirectory}");
 
-    // 2. Delegate the conversion job to our specialist class
-    Console.WriteLine("Delegating to the OvfToDxfConverter...");
-    var converter = new OvfToDxfConverter();
-    DxfDocument dxf = converter.Convert(workPlane);
+            // 2. Read the OVF File
+            using var reader = new OVFFileReader();
+            reader.OpenJob(options.InputFile);
+            var jobShell = reader.JobShell;
+            int totalLayers = jobShell.NumWorkPlanes;
+            Console.WriteLine($"File contains {totalLayers} layers.");
 
-    // 3. Save the result
-    dxf.Save(dxfOutputPath);
-    Console.WriteLine($"Successfully saved annotated DXF file to: {dxfOutputPath}");
+            var converter = new OvfToDxfConverter();
 
-} catch (Exception ex) {
-    Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine($"\nAn error occurred: {ex.Message}");
-    Console.ResetColor();
+            // 3. THE BIG LOOP! We loop through every layer.
+            for (int i = 0; i < totalLayers; i++) {
+                Console.WriteLine($"--> Processing Layer {i}...");
+                var workPlane = reader.GetWorkPlane(i);
+
+                // Let's create a smart output filename
+                string inputFileName = Path.GetFileNameWithoutExtension(options.InputFile);
+                string outputFileName = $"{inputFileName}_Layer_{i}.dxf";
+                string fullOutputPath = Path.Combine(options.OutputDirectory, outputFileName);
+
+                var dxfDocument = converter.Convert(workPlane);
+                dxfDocument.Save(fullOutputPath);
+                Console.WriteLine($"    Successfully saved: {outputFileName}");
+            }
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("\nProcessing complete! All layers have been converted.");
+            Console.ResetColor();
+        } catch (Exception ex) {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"\nAn error occurred: {ex.Message}");
+            Console.ResetColor();
+        }
+    }
 }
-
-Console.WriteLine("\nPress any key to exit.");
-Console.ReadKey();
