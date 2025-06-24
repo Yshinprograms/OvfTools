@@ -1,13 +1,11 @@
 ﻿// Program.cs
-
-using netdxf;
 using netDxf;
 using OpenVectorFormat.OVFReaderWriter;
 using OvfAnnotator; // NEW! We need to tell Program.cs it can use our new class!
 
 // --- Configuration ---
-const string ovfInputPath = @"..\..\..\TestFiles\my_test_file.ovf";
-const string dxfOutputPath = @"..\..\..\TestFiles\output_layer_0_annotated.dxf";
+const string ovfInputPath = @"C:\Users\pin20\Downloads\SIMTech_Internship\RTC6_Controller\RTC6_Controller\x64\Debug\complex.ovf";
+const string dxfOutputPath = @"C:\Users\pin20\Downloads\SIMTech_Internship\RTC6_Controller\RTC6_Controller\x64\Debug\dxfLayer1_3_layers.dxf";
 const int layerToProcess = 0;
 
 Console.WriteLine("--- OVF to DXF Annotator (Phase 2: Refactored!) ---");
