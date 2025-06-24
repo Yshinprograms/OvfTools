@@ -4,7 +4,7 @@ using OpenVectorFormat.OVFReaderWriter;
 using OvfAnnotator; // NEW! We need to tell Program.cs it can use our new class!
 
 // --- Configuration ---
-const string ovfInputPath = @"C:\Users\pin20\Downloads\SIMTech_Internship\RTC6_Controller\RTC6_Controller\x64\Debug\complex.ovf";
+const string ovfInputPath = @"C:\Users\pin20\Downloads\SIMTech_Internship\RTC6_Controller\RTC6_Controller\x64\Debug\valid_3_layers.ovf";
 const string dxfOutputPath = @"C:\Users\pin20\Downloads\SIMTech_Internship\RTC6_Controller\RTC6_Controller\x64\Debug\dxfLayer1_3_layers.dxf";
 const int layerToProcess = 0;
 

@@ -6,70 +6,77 @@ using netDxf.Tables;
 using OpenVectorFormat;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace OvfAnnotator {
-    /// <summary>
-    /// Handles the conversion of an OVF WorkPlane into an annotated DxfDocument.
-    /// </summary>
     public class OvfToDxfConverter {
-        /// <summary>
-        /// Converts a single OVF WorkPlane to a DxfDocument, including geometry and annotations.
-        /// This is the main public entry point for this class.
-        /// </summary>
-        /// <param name="workPlane">The OVF WorkPlane to convert.</param>
-        /// <returns>A fully populated and annotated DxfDocument.</returns>
         public DxfDocument Convert(WorkPlane workPlane) {
             var dxf = new DxfDocument();
-            // We set the layer color to default, as individual entities will be colored.
+            var colorGenerator = new ColorGenerator();
+            var labelPositions = new List<Vector3>();
+
             var geometryLayer = new Layer("Geometry") { Color = AciColor.Default };
             var annotationLayer = new Layer("Annotations") { Color = AciColor.Default };
             dxf.Layers.Add(geometryLayer);
             dxf.Layers.Add(annotationLayer);
 
-            var labelPositions = new List<Vector2>();
-            var colorGenerator = new ColorGenerator();
+            var allEntities = new List<EntityObject>();
 
-            int blockId = 0;
-            foreach (var block in workPlane.VectorBlocks) {
-                // Get the unique, high-contrast color for this block.
-                var currentColor = colorGenerator.GetNextColor();
+            for (int i = 0; i < workPlane.VectorBlocks.Count; i++) {
+                var block = workPlane.VectorBlocks[i];
+                var color = colorGenerator.GetNextColor();
 
-                // Pass the color down to the geometry creation method.
-                var geometryEntities = GetBlockGeometry(block, geometryLayer, currentColor, out double minX, out double minY, out double maxX, out double maxY);
-
-                if (geometryEntities.Count > 0) {
-                    dxf.Entities.Add(geometryEntities);
-
-                    const double textHeight = 1.0;
-                    var initialPosition = new Vector2(minX + (maxX - minX) / 2.0, minY + (maxY - minY) / 2.0);
-                    var finalPosition = FindAvailableLabelPosition(initialPosition, textHeight, labelPositions);
-
-                    var annotationText = new Text($"ID: {blockId}", finalPosition, textHeight) {
-                        Layer = annotationLayer,
-                        Alignment = TextAlignment.MiddleLeft,
-                        // Apply the same unique color to the text for clear association.
-                        Color = currentColor
-                    };
-                    dxf.Entities.Add(annotationText);
-
-                    labelPositions.Add(finalPosition);
-                } else {
-                    Console.WriteLine($"  -> Skipping block {blockId} of unhandled type: {block.VectorDataCase}");
+                var processedEntities = ProcessBlock(block, i, color, geometryLayer, annotationLayer, labelPositions);
+                if (processedEntities.Any()) {
+                    allEntities.AddRange(processedEntities);
                 }
-                blockId++;
             }
+
+            dxf.Entities.Add(allEntities);
             return dxf;
         }
 
-        /// <summary>
-        /// Creates a list of colored DXF geometry entities from a single VectorBlock and calculates its bounding box.
-        /// </summary>
+        private List<EntityObject> ProcessBlock(VectorBlock block, int blockId, AciColor color, Layer geoLayer, Layer annoLayer, List<Vector3> labelPositions) {
+            var entities = new List<EntityObject>();
+
+            var geometry = GetBlockGeometry(block, geoLayer, color, out double minX, out double minY, out double maxX, out double maxY);
+            if (!geometry.Any()) {
+                Console.WriteLine($"  -> Skipping block {blockId} of unhandled type: {block.VectorDataCase}");
+                return entities;
+            }
+
+            // The CreateAnnotation method will now take the four double values.
+            var annotation = CreateAnnotation(blockId, minX, minY, maxX, maxY, color, annoLayer, labelPositions);
+
+            entities.AddRange(geometry);
+            entities.Add(annotation);
+
+            labelPositions.Add(annotation.Position);
+
+            return entities;
+        }
+
+        // This method's signature is updated to take the simple bounds.
+        private Text CreateAnnotation(int blockId, double minX, double minY, double maxX, double maxY, AciColor color, Layer layer, List<Vector3> existingPositions) {
+            const double textHeight = 1.0;
+            // Calculate the center point from the raw values. This is this method's clear responsibility.
+            double centerX = minX + (maxX - minX) / 2.0;
+            double centerY = minY + (maxY - minY) / 2.0;
+            var initialPosition = new Vector3(centerX, centerY, 0);
+
+            var finalPosition = FindAvailableLabelPosition(initialPosition, textHeight, existingPositions);
+
+            return new Text($"ID: {blockId}", finalPosition, textHeight) {
+                Layer = layer,
+                Alignment = TextAlignment.MiddleLeft,
+                Color = color
+            };
+        }
+
+        // The 'out' parameters are back, and they are perfect for this job.
         private List<EntityObject> GetBlockGeometry(VectorBlock block, Layer layer, AciColor color, out double minX, out double minY, out double maxX, out double maxY) {
             var entities = new List<EntityObject>();
-            minX = double.MaxValue;
-            minY = double.MaxValue;
-            maxX = double.MinValue;
-            maxY = double.MinValue;
+            minX = double.MaxValue; minY = double.MaxValue; maxX = double.MinValue; maxY = double.MinValue;
 
             switch (block.VectorDataCase) {
                 case VectorBlock.VectorDataOneofCase.LineSequence:
@@ -78,51 +85,45 @@ namespace OvfAnnotator {
                     for (int i = 0; i < points.Count; i += 2) {
                         double x = points[i];
                         double y = points[i + 1];
-                        vertices.Add(new Polyline2DVertex(x, y));
+                        vertices.Add(new Polyline2DVertex(new Vector2(x, y)));
 
                         if (x < minX) minX = x;
                         if (y < minY) minY = y;
                         if (x > maxX) maxX = x;
                         if (y > maxY) maxY = y;
                     }
-                    var polyline = new Polyline2D(vertices) { Layer = layer, Color = color };
-                    entities.Add(polyline);
+                    entities.Add(new Polyline2D(vertices) { Layer = layer, Color = color });
                     break;
-
                 case VectorBlock.VectorDataOneofCase.Hatches:
                     var hatchPoints = block.Hatches.Points;
                     for (int i = 0; i < hatchPoints.Count; i += 4) {
-                        var startPoint = new Vector2(hatchPoints[i], hatchPoints[i + 1]);
-                        var endPoint = new Vector2(hatchPoints[i + 2], hatchPoints[i + 3]);
-                        var line = new Line(startPoint, endPoint) { Layer = layer, Color = color };
-                        entities.Add(line);
+                        var start = new Vector2(hatchPoints[i], hatchPoints[i + 1]);
+                        var end = new Vector2(hatchPoints[i + 2], hatchPoints[i + 3]);
+                        entities.Add(new Line(start, end) { Layer = layer, Color = color });
 
-                        if (startPoint.X < minX) minX = startPoint.X;
-                        if (startPoint.Y < minY) minY = startPoint.Y;
-                        if (startPoint.X > maxX) maxX = startPoint.X;
-                        if (startPoint.Y > maxY) maxY = startPoint.Y;
+                        if (start.X < minX) minX = start.X;
+                        if (start.Y < minY) minY = start.Y;
+                        if (start.X > maxX) maxX = start.X;
+                        if (start.Y > maxY) maxY = start.Y;
 
-                        if (endPoint.X < minX) minX = endPoint.X;
-                        if (endPoint.Y < minY) minY = endPoint.Y;
-                        if (endPoint.X > maxX) maxX = endPoint.X;
-                        if (endPoint.Y > maxY) maxY = endPoint.Y;
+                        if (end.X < minX) minX = end.X;
+                        if (end.Y < minY) minY = end.Y;
+                        if (end.X > maxX) maxX = end.X;
+                        if (end.Y > maxY) maxY = end.Y;
                     }
                     break;
             }
             return entities;
         }
 
-        /// <summary>
-        /// Finds an available position for a new label, avoiding collisions with existing labels.
-        /// </summary>
-        private Vector2 FindAvailableLabelPosition(Vector2 desiredPosition, double textHeight, List<Vector2> existingPositions) {
-            var finalPosition = new Vector2(desiredPosition.X, desiredPosition.Y);
+        private Vector3 FindAvailableLabelPosition(Vector3 desiredPosition, double textHeight, List<Vector3> existingPositions) {
+            var finalPosition = new Vector3(desiredPosition.X, desiredPosition.Y, desiredPosition.Z);
             bool isOccupied;
 
             do {
                 isOccupied = false;
                 foreach (var existingPos in existingPositions) {
-                    if (Vector2.Distance(finalPosition, existingPos) < textHeight) {
+                    if (Vector3.Distance(finalPosition, existingPos) < textHeight) {
                         isOccupied = true;
                         finalPosition.Y -= textHeight * 1.5;
                         break;
