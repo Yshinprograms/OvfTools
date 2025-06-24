@@ -37,6 +37,18 @@
                     Padding="8,3"
                     Click="FitToScreenButton_Click"
                     ToolTip="Fit content to screen"/>
+            <Separator />
+            <TextBlock Text="Find Vector:" VerticalAlignment="Center" Margin="5,0" />
+            <TextBox x:Name="FindVectorTextBox" 
+                     Width="60" 
+                     Margin="5,0" 
+                     ToolTip="Enter vector block ID to find"
+                     KeyDown="FindVectorTextBox_KeyDown" />
+            <Button x:Name="FindVectorButton" 
+                    Content="Find" 
+                    Padding="8,3"
+                    Click="FindVectorButton_Click"
+                    ToolTip="Find and center on vector block"/>
         </ToolBar>
 
         <!-- Main Content -->
@@ -100,29 +112,31 @@
                     BorderThickness="1" 
                     BorderBrush="LightGray"
                     CornerRadius="3"
-                    Background="White">
-                <Border BorderBrush="DarkGray" BorderThickness="1" Background="White" CornerRadius="3">
-                    <Grid x:Name="CanvasGrid" Background="White">
-                        <Canvas x:Name="VectorCanvas"
-                                ClipToBounds="True"
-                                Background="White"
-                                MouseWheel="VectorCanvas_MouseWheel"
-                                MouseLeftButtonDown="VectorCanvas_MouseLeftButtonDown"
-                                MouseLeftButtonUp="VectorCanvas_MouseLeftButtonUp"
-                                MouseMove="VectorCanvas_MouseMove"
-                                SizeChanged="VectorCanvas_SizeChanged"
-                                RenderTransformOrigin="0.5,0.5" Margin="0,0,0,10">
-                            <!-- Vector content will be added here programmatically -->
-                            <TextBlock x:Name="EmptyStateText"
-                                       Text="Load an OVF file and select a layer to view vectors"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       Foreground="DarkGray"
-                                       FontStyle="Italic"
-                                       FontSize="14"/>
-                        </Canvas>
-                    </Grid>
-                </Border>
+                    Background="White"
+                    ClipToBounds="True">
+                <Grid x:Name="CanvasGrid" Background="White" ClipToBounds="True">
+                    <Canvas x:Name="VectorCanvas"
+                            ClipToBounds="True"
+                            Background="LightGray"
+                            MouseWheel="VectorCanvas_MouseWheel"
+                            MouseLeftButtonDown="VectorCanvas_MouseLeftButtonDown"
+                            MouseLeftButtonUp="VectorCanvas_MouseLeftButtonUp"
+                            MouseMove="VectorCanvas_MouseMove"
+                            SizeChanged="VectorCanvas_SizeChanged"
+                            RenderTransformOrigin="0.5,0.5"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch">
+                        <!-- Vector content will be added here programmatically -->
+                    </Canvas>
+                    <TextBlock x:Name="EmptyStateText"
+                               Text="Load an OVF file and select a layer to view vectors"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Foreground="DarkGray"
+                               FontStyle="Italic"
+                               FontSize="14"
+                               Panel.ZIndex="1"/>
+                </Grid>
             </Border>
         </Grid>
 

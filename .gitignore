@@ -56,3 +56,4 @@ TestResults/
 
 # Specific to our projects (just in case)
 *.modified.ovf
+RepoMix/
