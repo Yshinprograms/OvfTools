@@ -1,4 +1,4 @@
-﻿// Program.cs - The Final Version!
+﻿// Program.cs - Now with more convenience and flair!
 
 using CommandLine;
 using OpenVectorFormat.OVFReaderWriter;
@@ -8,27 +8,37 @@ using System.IO;
 
 public class Program {
     public static void Main(string[] args) {
-        // This is the magic line from the CommandLineParser library.
-        // It takes the command-line arguments (`args`), tries to match them
-        // to our `Options` class, and then decides what to do.
         Parser.Default.ParseArguments<Options>(args)
                .WithParsed(RunOptionsAndReturnExitCode);
     }
 
-    // This method only runs if the command-line arguments were parsed successfully!
-    // It receives a populated `options` object with the user's input.
     public static void RunOptionsAndReturnExitCode(Options options) {
-        Console.WriteLine("--- OVF to DXF Annotator ---");
+        // --- NEW: Our Awesome Welcome Banner! ---
+        Console.WriteLine("=================================================");
+        Console.WriteLine("||                OVF Annotator                ||");
+        Console.WriteLine("=================================================");
+        Console.WriteLine();
+
         try {
-            // 1. Validate inputs
+            // 1. Validate inputs and Handle Paths
             if (!File.Exists(options.InputFile)) {
                 throw new FileNotFoundException("Input OVF file not found.", options.InputFile);
             }
-            // Create the output directory if it doesn't exist
-            Directory.CreateDirectory(options.OutputDirectory);
+
+            // --- NEW: Smart Default Path Logic! ---
+            string outputDirectory = options.OutputDirectory;
+            if (string.IsNullOrWhiteSpace(outputDirectory)) {
+                // The user didn't provide an output path, so we'll create one!
+                string inputDirectory = Path.GetDirectoryName(options.InputFile);
+                string inputFileName = Path.GetFileNameWithoutExtension(options.InputFile);
+                outputDirectory = Path.Combine(inputDirectory, $"{inputFileName}_DXF_Output");
+                Console.WriteLine("No output directory specified. Using smart default:");
+            }
+
+            Directory.CreateDirectory(outputDirectory);
 
             Console.WriteLine($"Processing file: {options.InputFile}");
-            Console.WriteLine($"Output will be saved to: {options.OutputDirectory}");
+            Console.WriteLine($"Output will be saved to: {outputDirectory}");
 
             // 2. Read the OVF File
             using var reader = new OVFFileReader();
@@ -39,15 +49,14 @@ public class Program {
 
             var converter = new OvfToDxfConverter();
 
-            // 3. THE BIG LOOP! We loop through every layer.
+            // 3. THE BIG LOOP (unchanged, but now uses our new outputDirectory variable)
             for (int i = 0; i < totalLayers; i++) {
                 Console.WriteLine($"--> Processing Layer {i}...");
                 var workPlane = reader.GetWorkPlane(i);
 
-                // Let's create a smart output filename
                 string inputFileName = Path.GetFileNameWithoutExtension(options.InputFile);
                 string outputFileName = $"{inputFileName}_Layer_{i}.dxf";
-                string fullOutputPath = Path.Combine(options.OutputDirectory, outputFileName);
+                string fullOutputPath = Path.Combine(outputDirectory, outputFileName);
 
                 var dxfDocument = converter.Convert(workPlane);
                 dxfDocument.Save(fullOutputPath);
