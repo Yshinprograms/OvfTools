@@ -8,25 +8,26 @@ using System.Linq;
 
 namespace OvfAnnotator {
     public class OvfToDxfConverter {
-        /// <summary>
-        /// Converts a WorkPlane to a DxfDocument, routing to the correct coloring strategy.
-        /// </summary>
+        // A private struct to handle bounding box calculations. Perfect as-is.
+        private struct SimpleBounds {
+            public double MinX, MinY, MaxX, MaxY;
+            public SimpleBounds() { MinX = double.MaxValue; MinY = double.MaxValue; MaxX = double.MinValue; MaxY = double.MinValue; }
+            public void Union(double x, double y) { if (x < MinX) MinX = x; if (y < MinY) MinY = y; if (x > MaxX) MaxX = x; if (y > MaxY) MaxY = y; }
+            public Vector3 Center() => new Vector3(MinX + (MaxX - MinX) / 2.0, MinY + (MaxY - MinY) / 2.0, 0);
+        }
+
+        // --- PUBLIC ENTRY POINT ---
         public DxfDocument Convert(WorkPlane workPlane, Options options) {
             var dxf = new DxfDocument();
-
-            // Route to the correct strategy based on the user's command-line option.
             if (options.ColorByBlock) {
                 ProcessWorkPlaneByBlock(dxf, workPlane, options);
             } else {
                 ProcessWorkPlaneByPart(dxf, workPlane, options);
             }
-
             return dxf;
         }
 
-        /// <summary>
-        /// Strategy 1: Colors each VectorBlock individually and gives it a unique ID label.
-        /// </summary>
+        // --- "BY BLOCK" STRATEGY ---
         private void ProcessWorkPlaneByBlock(DxfDocument dxf, WorkPlane workPlane, Options options) {
             var colorGenerator = new ColorGenerator();
             var labelPositions = new List<Vector3>();
@@ -36,57 +37,97 @@ namespace OvfAnnotator {
             dxf.Layers.Add(annotationLayer);
 
             for (int i = 0; i < workPlane.VectorBlocks.Count; i++) {
-                var block = workPlane.VectorBlocks[i];
-                var color = colorGenerator.GetNextColor();
-                var geometry = GetBlockGeometry(block, color, out double minX, out double minY, out double maxX, out double maxY);
-
-                if (!geometry.Any()) continue;
-
-                var annotation = CreateBlockAnnotation(i, minX, minY, maxX, maxY, color, annotationLayer, labelPositions, options);
-
-                // Assign all geometry from this block to the main geometry layer
-                foreach (var entity in geometry) { entity.Layer = geometryLayer; }
-
-                dxf.Entities.Add(geometry);
-                dxf.Entities.Add(annotation);
-                labelPositions.Add(annotation.Position);
+                ProcessSingleBlock(dxf, workPlane.VectorBlocks[i], i, options, colorGenerator, geometryLayer, annotationLayer, labelPositions);
             }
         }
 
-        /// <summary>
-        /// Strategy 2 (Default): Colors geometry based on its assigned Part ID and places it on a part-specific layer.
-        /// </summary>
+        private void ProcessSingleBlock(DxfDocument dxf, VectorBlock block, int blockId, Options options, ColorGenerator colorGenerator, Layer geoLayer, Layer annoLayer, List<Vector3> labelPositions) {
+            var color = colorGenerator.GetNextColor();
+            var geometry = GetBlockGeometry(block, color, out double minX, out double minY, out double maxX, out double maxY);
+
+            if (!geometry.Any()) return;
+
+            var annotation = CreateBlockAnnotation(blockId, minX, minY, maxX, maxY, color, annoLayer, labelPositions, options);
+
+            foreach (var entity in geometry) {
+                entity.Layer = geoLayer;
+                dxf.Entities.Add(entity);
+            }
+            dxf.Entities.Add(annotation);
+            labelPositions.Add(annotation.Position);
+        }
+
+
+        // --- "BY PART" STRATEGY ---
         private void ProcessWorkPlaneByPart(DxfDocument dxf, WorkPlane workPlane, Options options) {
+            var partDataOnLayer = new Dictionary<int, (List<EntityObject> Geometry, SimpleBounds Bbox, AciColor Color, Layer Layer)>();
+            GatherPartData(workPlane, dxf, partDataOnLayer);
+            DrawAndAnnotateParts(dxf, partDataOnLayer, options);
+        }
+
+        private void GatherPartData(WorkPlane workPlane, DxfDocument dxf, Dictionary<int, (List<EntityObject> Geometry, SimpleBounds Bbox, AciColor Color, Layer Layer)> partData) {
             var colorGenerator = new ColorGenerator();
-            var partLayers = new Dictionary<int, Layer>();
-            var partColors = new Dictionary<int, AciColor>();
-
             foreach (var block in workPlane.VectorBlocks) {
-                // Default to Part 0 (or a special "unassigned" key) if no PartKey is present.
-                int partKey = block.MetaData?.PartKey ?? 0;
-
-                // Get or create a consistent color for this Part ID.
-                if (!partColors.ContainsKey(partKey)) {
-                    partColors[partKey] = colorGenerator.GetNextColor();
-                }
-                var color = partColors[partKey];
-
-                // Get or create a dedicated DXF layer for this Part ID.
-                if (!partLayers.ContainsKey(partKey)) {
-                    string layerName = (partKey == 0) ? "Unassigned_Geometry" : $"Part_{partKey}";
-                    var newLayer = new Layer(layerName) { Color = color };
-                    dxf.Layers.Add(newLayer);
-                    partLayers[partKey] = newLayer;
-                }
-                var layer = partLayers[partKey];
-
-                var geometry = GetBlockGeometry(block, color, out _, out _, out _, out _);
-
-                // Assign all geometry from this block to its corresponding part layer.
-                foreach (var entity in geometry) { entity.Layer = layer; }
-                dxf.Entities.Add(geometry);
+                ProcessBlockForPartGrouping(block, dxf, partData, colorGenerator);
             }
         }
+
+        private void ProcessBlockForPartGrouping(VectorBlock block, DxfDocument dxf, Dictionary<int, (List<EntityObject> Geometry, SimpleBounds Bbox, AciColor Color, Layer Layer)> partData, ColorGenerator colorGenerator) {
+            int partKey = block.MetaData?.PartKey ?? 0;
+            var currentPartData = GetOrAddPartData(partData, partKey, dxf, colorGenerator);
+
+            var geometry = GetBlockGeometry(block, currentPartData.Color, out double minX, out double minY, out double maxX, out double maxY);
+            if (!geometry.Any()) return;
+
+            currentPartData.Geometry.AddRange(geometry);
+            currentPartData.Bbox.Union(minX, minY);
+            currentPartData.Bbox.Union(maxX, maxY);
+        }
+
+        private (List<EntityObject> Geometry, SimpleBounds Bbox, AciColor Color, Layer Layer) GetOrAddPartData(Dictionary<int, (List<EntityObject> Geometry, SimpleBounds Bbox, AciColor Color, Layer Layer)> partData, int partKey, DxfDocument dxf, ColorGenerator colorGenerator) {
+            if (!partData.ContainsKey(partKey)) {
+                string layerName = (partKey == 0) ? "Unassigned_Geometry" : $"Part_{partKey}";
+                var color = colorGenerator.GetNextColor();
+                var layer = new Layer(layerName) { Color = color };
+                dxf.Layers.Add(layer);
+                partData[partKey] = (new List<EntityObject>(), new SimpleBounds(), color, layer);
+            }
+            return partData[partKey];
+        }
+
+        private void DrawAndAnnotateParts(DxfDocument dxf, Dictionary<int, (List<EntityObject> Geometry, SimpleBounds Bbox, AciColor Color, Layer Layer)> partData, Options options) {
+            var annotationLayer = new Layer("Part_Annotations") { Color = AciColor.Default };
+            dxf.Layers.Add(annotationLayer);
+            var labelPositions = new List<Vector3>();
+
+            foreach (var entry in partData) {
+                var data = entry.Value;
+                foreach (var entity in data.Geometry) {
+                    entity.Layer = data.Layer;
+                    dxf.Entities.Add(entity);
+                }
+
+                if (entry.Key != 0) 
+                {
+                    CreatePartAnnotation(dxf, entry.Key, data, options, annotationLayer, labelPositions);
+                }
+            }
+        }
+
+        private void CreatePartAnnotation(DxfDocument dxf, int partKey, (List<EntityObject> Geometry, SimpleBounds Bbox, AciColor Color, Layer Layer) data, Options options, Layer annotationLayer, List<Vector3> labelPositions) {
+            var center = data.Bbox.Center();
+            var finalPosition = FindAvailableLabelPosition(center, options.TextHeight, labelPositions);
+            string labelText = $"Part {partKey}";
+
+            var annotation = new Text(labelText, finalPosition, options.TextHeight) {
+                Layer = annotationLayer,
+                Alignment = TextAlignment.MiddleCenter,
+                Color = data.Color
+            };
+            dxf.Entities.Add(annotation);
+            labelPositions.Add(finalPosition);
+        }
+
 
         /// <summary>
         /// Generic helper to create DXF entities from a VectorBlock's data.
@@ -131,7 +172,6 @@ namespace OvfAnnotator {
             }
             return entities;
         }
-
         /// <summary>
         /// Creates a text annotation for a block's ID, used only in "by block" mode.
         /// </summary>

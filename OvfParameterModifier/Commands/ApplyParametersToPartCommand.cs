@@ -12,7 +12,6 @@ namespace OvfParameterModifier.Commands {
         public CommandCategory Category => CommandCategory.Editing;
 
         public bool Execute(Job job, JobEditor editor, IUserInterface ui) {
-            // First, make sure there are actually parts to edit!
             if (job.PartsMap.Count == 0) {
                 ui.DisplayMessage("No parts found. Please run the 'Assign Parts from Contours' command first.", isError: true);
                 ui.WaitForAcknowledgement();

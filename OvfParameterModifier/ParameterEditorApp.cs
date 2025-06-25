@@ -21,7 +21,7 @@ namespace OvfParameterModifier {
             _editor = editor;
 
             // Initialize all our commands. Adding a new one is as simple as adding a line here!
-            _commands = new List<ICommand>
+            var unsortedCommands = new List<ICommand>
             {
                 new ViewParameterSetsCommand(),
                 new ApplyToLayerRangeCommand(),
@@ -32,6 +32,11 @@ namespace OvfParameterModifier {
                 new ApplyParametersToPartCommand(),
                 // Add future commands here!
             };
+
+            _commands = unsortedCommands
+                    .OrderBy(c => (int)c.Category)
+                    .ThenBy(c => c.Name)
+                    .ToList();
         }
 
         public void Run() {
