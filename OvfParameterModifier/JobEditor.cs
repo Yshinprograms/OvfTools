@@ -80,5 +80,26 @@ namespace OvfParameterModifier {
         private static bool AreFloatsClose(float a, float b, float tolerance = 0.001f) {
             return Math.Abs(a - b) < tolerance;
         }
+
+        public void ApplyParametersToPart(Job job, int partKey, int paramKey) {
+            if (!job.PartsMap.ContainsKey(partKey)) {
+                throw new KeyNotFoundException($"Part with ID {partKey} does not exist in the job.");
+            }
+            if (!DoesParamSetExist(job, paramKey)) {
+                throw new KeyNotFoundException($"Parameter Set with ID {paramKey} does not exist.");
+            }
+
+            // This is our "search and update" mission!
+            // We go through every single block in the entire job.
+            foreach (var workPlane in job.WorkPlanes) {
+                foreach (var vectorBlock in workPlane.VectorBlocks) {
+                    // The '?' is a null-conditional operator. It's a safe way to check this
+                    // without causing an error if MetaData happens to be null.
+                    if (vectorBlock.MetaData?.PartKey == partKey) {
+                        vectorBlock.MarkingParamsKey = paramKey;
+                    }
+                }
+            }
+        }
     }
 }

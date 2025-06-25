@@ -215,5 +215,21 @@ namespace OvfParameterModifier {
             string input = Console.ReadLine()?.ToLower() ?? "";
             return input == "y";
         }
+        public void DisplayPartsList(IDictionary<int, Part> partsMap) {
+            Console.WriteLine("\n--- Available Parts ---");
+            if (partsMap.Count == 0) {
+                Console.WriteLine("No parts have been assigned yet. Please run 'Assign Parts from Contours' first.");
+                return;
+            }
+            foreach (var entry in partsMap.OrderBy(p => p.Key)) {
+                Console.WriteLine($"  ID: {entry.Key}, Name: '{entry.Value.Name}'");
+            }
+        }
+
+        public int GetTargetPartId(IEnumerable<int> availableKeys) {
+            string keyList = string.Join(", ", availableKeys.OrderBy(k => k));
+            Console.WriteLine($"(Available Part IDs: {keyList})");
+            return GetIntegerInput("Enter the ID of the Part to modify: ");
+        }
     }
 }

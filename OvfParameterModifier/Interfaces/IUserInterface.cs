@@ -17,7 +17,8 @@ namespace OvfParameterModifier.Interfaces {
         void DisplayDashboard(string filePath, string jobName, int layerCount, bool isModified);
 
         int DisplayMenuAndGetChoice(List<ICommand> commands);
-
+        void DisplayPartsList(IDictionary<int, Part> partsMap);
+        int GetTargetPartId(IEnumerable<int> availableKeys);
         string GetSourceFilePath();
         string GetOutputFilePath(string defaultPath);
 
