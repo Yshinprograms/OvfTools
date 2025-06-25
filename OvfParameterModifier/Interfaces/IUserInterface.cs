@@ -36,5 +36,6 @@ namespace OvfParameterModifier.Interfaces {
         bool ConfirmQuitWithoutSaving();
         bool ConfirmDiscardChanges();
         string GetNewJobName(string currentName);
+        void DisplayHelp(List<ICommand> commands);
     }
 }

@@ -5,8 +5,9 @@ using System.Linq;
 
 namespace OvfParameterModifier.Commands {
     public class AssignPartsCommand : ICommand {
-        public string Name => "Assign Parts from Contours";
+        public string Name => "Automatic Assign Parts from Contours";
         public string Description => "Analyzes layer contours to identify and assign 3D parts.";
+        public CommandCategory Category => CommandCategory.Processing;
 
         public bool Execute(Job job, JobEditor editor, IUserInterface ui) {
             ui.DisplayMessage("Analyzing contours and assigning parts... this may take a moment.", isError: false);

@@ -10,6 +10,8 @@ namespace OvfParameterModifier.Commands {
         public string Name => "Apply Parameters by Vector Type in a Layer";
         public string Description => "Applies a parameter set to only Contour or Volume vectors within a single layer.";
 
+        public CommandCategory Category => CommandCategory.Editing;
+
         public bool Execute(Job job, JobEditor editor, IUserInterface ui) {
             try {
                 int layerIndex = ui.GetTargetLayerIndex(job.WorkPlanes.Count);

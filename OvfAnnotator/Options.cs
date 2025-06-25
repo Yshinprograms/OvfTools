@@ -16,5 +16,8 @@ namespace OvfAnnotator {
 
         [Option('s', "simpleId", Required = false, Default = false, HelpText = "Optional: If present, displays the block annotation as a simple number (e.g., '12') instead of 'ID: 12'.")]
         public bool SimpleId { get; set; }
+
+        [Option('b', "by-block", Required = false, Default = false, HelpText = "Optional: When present, colors each vector block individually instead of by Part ID.")]
+        public bool ColorByBlock { get; set; }
     }
 }

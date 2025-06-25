@@ -3,6 +3,11 @@
 using OpenVectorFormat;
 
 namespace OvfParameterModifier.Interfaces {
+    public enum CommandCategory {
+        Viewing,
+        Processing,
+        Editing
+    }
     public interface ICommand {
         /// <summary>
         /// The name of the command to be displayed in the main menu.
@@ -22,5 +27,7 @@ namespace OvfParameterModifier.Interfaces {
         /// <param name="ui">The user interface for interaction.</param>
         /// <returns>True if the job was modified; otherwise, false.</returns>
         bool Execute(Job job, JobEditor editor, IUserInterface ui);
+
+        CommandCategory Category { get; }
     }
 }

@@ -9,6 +9,8 @@ namespace OvfParameterModifier.Commands {
         public string Name => "Apply Parameters by Part";
         public string Description => "Applies a parameter set to all vector blocks associated with a specific part.";
 
+        public CommandCategory Category => CommandCategory.Editing;
+
         public bool Execute(Job job, JobEditor editor, IUserInterface ui) {
             // First, make sure there are actually parts to edit!
             if (job.PartsMap.Count == 0) {
@@ -41,7 +43,6 @@ namespace OvfParameterModifier.Commands {
             }
         }
 
-        // We can reuse this logic from our other commands! It's so efficient!
         private int GetParameterKey(Job job, JobEditor editor, IUserInterface ui) {
             var source = ui.GetParameterSourceChoice();
             switch (source) {

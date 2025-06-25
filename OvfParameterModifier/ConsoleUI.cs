@@ -8,16 +8,39 @@ using PartArea = OpenVectorFormat.VectorBlock.Types.PartArea;
 
 namespace OvfParameterModifier {
     public class ConsoleUI : IUserInterface {
+        public void DisplayHelp(List<ICommand> commands) {
+            Console.WriteLine("\n--- Command Help ---");
+            Console.WriteLine("Here is a list of available commands and what they do:\n");
+
+            foreach (var command in commands.OrderBy(c => c.Name)) {
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine($"  {command.Name}");
+                Console.ResetColor();
+                Console.WriteLine($"\t{command.Description}\n");
+            }
+        }
+
         public int DisplayMenuAndGetChoice(List<ICommand> commands) {
             Console.WriteLine("\n--- Main Menu ---");
-            for (int i = 0; i < commands.Count; i++) {
-                Console.WriteLine($"{i + 1}. {commands[i].Name}");
-            }
-            Console.WriteLine($"{commands.Count + 1}. Discard All Changes");
-            Console.WriteLine($"{commands.Count + 2}. Save and Exit");
-            Console.WriteLine($"{commands.Count + 3}. Quit Without Saving\n");
+            int menuIndex = 1;
 
-            int choice = GetIntegerInput("Select an option: ");
+            var groupedCommands = commands.OrderBy(c => (int)c.Category).GroupBy(c => c.Category);
+
+            foreach (var group in groupedCommands) {
+                Console.WriteLine($"\n--- {group.Key} ---");
+                foreach (var command in group) {
+                    Console.WriteLine($"{menuIndex}. {command.Name}");
+                    menuIndex++;
+                }
+            }
+
+            Console.WriteLine("\n--- Application ---");
+            Console.WriteLine($"{menuIndex++}. Help");
+            Console.WriteLine($"{menuIndex++}. Discard All Changes");
+            Console.WriteLine($"{menuIndex++}. Save and Exit");
+            Console.WriteLine($"{menuIndex++}. Quit Without Saving");
+
+            int choice = GetIntegerInput("\nSelect an option: ");
             return choice;
         }
 

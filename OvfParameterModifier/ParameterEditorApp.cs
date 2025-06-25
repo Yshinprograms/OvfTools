@@ -66,23 +66,27 @@ namespace OvfParameterModifier {
                     continue;
                 }
 
-                int metaOption = choice - _commands.Count;
-                switch (metaOption) {
-                    case 1:
-                        HandleDiscardChanges();
-                        break;
-                    case 2:
-                        HandleSaveAndExit();
+                int metaOptionBaseIndex = _commands.Count + 1;
+
+                if (choice == metaOptionBaseIndex) // Handle Help
+                {
+                    _ui.DisplayHelp(_commands);
+                    _ui.WaitForAcknowledgement();
+                } else if (choice == metaOptionBaseIndex + 1) // Handle Discard
+                  {
+                    HandleDiscardChanges();
+                } else if (choice == metaOptionBaseIndex + 2) // Handle Save
+                  {
+                    HandleSaveAndExit();
+                    return;
+                } else if (choice == metaOptionBaseIndex + 3) // Handle Quit
+                  {
+                    if (HandleQuit()) {
                         return;
-                    case 3:
-                        if (HandleQuit()) {
-                            return;
-                        }
-                        break;
-                    default:
-                        _ui.DisplayMessage("Invalid option selected. Please try again.", isError: true);
-                        _ui.WaitForAcknowledgement();
-                        break;
+                    }
+                } else {
+                    _ui.DisplayMessage("Invalid option selected. Please try again.", isError: true);
+                    _ui.WaitForAcknowledgement();
                 }
             }
         }

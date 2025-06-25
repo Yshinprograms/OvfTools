@@ -9,6 +9,8 @@ namespace OvfParameterModifier.Commands {
         public string Name => "Apply Parameters to a Layer Range";
         public string Description => "Applies a single parameter set to all vector blocks within a specified range of layers.";
 
+        public CommandCategory Category => CommandCategory.Editing;
+
         public bool Execute(Job job, JobEditor editor, IUserInterface ui) {
             try {
                 (int startLayer, int endLayer) = ui.GetLayerRange(job.WorkPlanes.Count);

@@ -6,6 +6,8 @@ namespace OvfParameterModifier.Commands {
         public string Name => "Change Job Name";
         public string Description => "Edits the name of the job in its metadata.";
 
+        public CommandCategory Category => CommandCategory.Editing;
+
         public bool Execute(Job job, JobEditor editor, IUserInterface ui) {
             string newName = ui.GetNewJobName(job.JobMetaData?.JobName ?? "N/A");
             if (!string.IsNullOrWhiteSpace(newName)) {

@@ -8,6 +8,8 @@ namespace OvfParameterModifier.Commands {
         public string Name => "Edit Individual Vector Blocks in a Layer";
         public string Description => "Manually step through and edit each vector block in a single layer (Proof of Concept).";
 
+        public CommandCategory Category => CommandCategory.Editing;
+
         public bool Execute(Job job, JobEditor editor, IUserInterface ui) {
             try {
                 int layerIndex = ui.GetTargetLayerIndex(job.WorkPlanes.Count);
