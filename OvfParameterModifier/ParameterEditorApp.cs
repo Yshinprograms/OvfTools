@@ -92,9 +92,18 @@ namespace OvfParameterModifier {
             string outputPath = _ui.GetOutputFilePath(defaultPath);
 
             try {
+                _ui.DisplayMessage($"Saving to {outputPath}...", isError: false);
                 using (var writer = new OVFFileWriter()) {
-                    // Using SimpleJobWrite which is a robust wrapper around the partial write logic
-                    writer.SimpleJobWrite(_job, outputPath);
+                    // Step 1: Initialize the file with the Job Shell
+                    writer.StartWritePartial(_job, outputPath);
+
+                    // Step 2: Append each WorkPlane one by one
+                    foreach (var workPlane in _job.WorkPlanes) {
+                        writer.AppendWorkPlane(workPlane);
+                    }
+
+                    // Step 3: Dispose() finalizes the file by writing the last plane,
+                    // the final job shell, and the LUT. THIS IS CRUCIAL.
                 }
                 _ui.DisplayGoodbyeMessage();
             } catch (Exception ex) {
