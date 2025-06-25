@@ -1,217 +1,139 @@
 ﻿using OpenVectorFormat;
 using OpenVectorFormat.OVFReaderWriter;
-using OvfParameterModifier.Exceptions;
-using PartArea = OpenVectorFormat.VectorBlock.Types.PartArea; // FIX: Added type alias for the nested enum
+using OvfParameterModifier.Commands;
+using OvfParameterModifier.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.IO;
 
 namespace OvfParameterModifier {
-    public class ParameterEditorApp(IUserInterface ui, JobEditor editor) {
-        private Job _activeJob = null!;
-        private string _sourceFilePath = null!;
+    public class ParameterEditorApp {
+        private readonly IUserInterface _ui;
+        private readonly JobEditor _editor;
+        private string _sourceFilePath;
+        private Job _job;
         private bool _isModified = false;
+
+        // The new, clean list of available commands
+        private readonly List<ICommand> _commands;
+
+        public ParameterEditorApp(IUserInterface ui, JobEditor editor) {
+            _ui = ui;
+            _editor = editor;
+
+            // Initialize all our commands. Adding a new one is as simple as adding a line here!
+            _commands = new List<ICommand>
+            {
+                new ViewParameterSetsCommand(),
+                new ApplyToLayerRangeCommand(),
+                new ApplyByVectorTypeInLayerCommand(),
+                new EditVectorBlocksCommand(),
+                new ChangeJobNameCommand(),
+                // Add future commands like "new AssignPartsCommand()" here!
+            };
+        }
+
         public void Run() {
-            ui.DisplayWelcomeMessage();
+            _ui.DisplayWelcomeMessage();
+            if (!LoadInitialFile()) return;
+            MainMenuLoop();
+        }
+
+        private bool LoadInitialFile() {
             try {
-                LoadJob();
-                MainLoop();
+                _sourceFilePath = _ui.GetSourceFilePath();
+                _job = LoadJobFromFile(_sourceFilePath);
+                _isModified = false;
+                return true;
             } catch (Exception ex) {
-                ui.DisplayMessage($"A fatal error occurred: {ex.Message}", isError: true);
-            }
-        }
-        private void MainLoop() {
-            bool running = true;
-            while (running) {
-                ui.DisplayDashboard(_sourceFilePath, _activeJob.JobMetaData.JobName, _activeJob.WorkPlanes.Count, _isModified);
-                try {
-                    var choice = ui.GetMainMenuSelection();
-                    switch (choice) {
-                        case MainMenuOption.ViewParameterSets:
-                            ui.DisplayParameterSets(_activeJob.MarkingParamsMap);
-                            ui.WaitForAcknowledgement();
-                            break;
-                        case MainMenuOption.ApplyToLayerRange:
-                            DoApplyParametersToRange();
-                            break;
-                        case MainMenuOption.ApplyByVectorTypeInLayer:
-                            DoApplyByVectorType();
-                            break;
-                        case MainMenuOption.EditVectorBlocksInLayer:
-                            DoVectorBlockEditing();
-                            break;
-                        case MainMenuOption.ChangeJobName:
-                            DoChangeJobName();
-                            break;
-                        case MainMenuOption.DiscardChanges:
-                            DoDiscardChanges();
-                            break;
-                        case MainMenuOption.SaveAndExit:
-                            DoSaveAndExit();
-                            running = false;
-                            break;
-                        case MainMenuOption.QuitWithoutSaving:
-                            running = !DoQuitWithoutSaving();
-                            break;
-                        default:
-                            ui.DisplayMessage("Invalid selection, please try again.", isError: true);
-                            ui.WaitForAcknowledgement();
-                            break;
-                    }
-                } catch (UserInputException ex) {
-                    ui.DisplayMessage(ex.Message, isError: true);
-                    ui.WaitForAcknowledgement();
-                } catch (Exception ex) {
-                    ui.DisplayMessage(ex.Message, isError: true);
-                    ui.WaitForAcknowledgement();
-                }
-            }
-        }
-        private void DoChangeJobName() {
-            string currentName = _activeJob.JobMetaData?.JobName ?? "Unnamed Job";
-            string newName = ui.GetNewJobName(currentName);
-            if (string.IsNullOrWhiteSpace(newName)) {
-                ui.DisplayMessage("Job name cannot be empty. No change was made.", isError: true);
-                ui.WaitForAcknowledgement();
-                return;
-            }
-            editor.SetJobName(_activeJob, newName);
-            _isModified = true;
-            ui.DisplayMessage("Job name updated successfully.");
-            ui.WaitForAcknowledgement();
-        }
-        private int? GetParameterKeyFromUser() {
-            var choice = ui.GetParameterSourceChoice();
-            if (choice == ParameterSource.ReturnToMenu) {
-                return null;
-            }
-            int keyToUse;
-            if (choice == ParameterSource.UseExistingId) {
-                keyToUse = ui.GetExistingParameterSetId(_activeJob.MarkingParamsMap.Keys);
-                if (!editor.DoesParamSetExist(_activeJob, keyToUse)) {
-                    throw new OvfParameterModifierException($"Parameter Set with ID {keyToUse} does not exist.");
-                }
-            } else {
-                var (power, speed) = ui.GetDesiredParameters();
-                keyToUse = editor.FindOrCreateParameterSetKey(_activeJob, power, speed);
-            }
-            return keyToUse;
-        }
-        private void DoApplyParametersToRange() {
-            int? keyToUse = GetParameterKeyFromUser();
-            if (!keyToUse.HasValue) return;
-
-            var (startLayer, endLayer) = ui.GetLayerRange();
-            int maxLayer = editor.GetMaxLayerIndex(_activeJob) + 1;
-            if (startLayer < 1 || endLayer > maxLayer || startLayer > endLayer) {
-                ui.DisplayMessage($"Invalid layer range. Please enter numbers between 1 and {maxLayer}.", isError: true);
-                ui.WaitForAcknowledgement();
-                return;
-            }
-            editor.ApplyParametersToLayerRange(_activeJob, startLayer - 1, endLayer - 1, keyToUse.Value);
-            _isModified = true;
-            ui.DisplayMessage($"Successfully applied Parameter Set ID {keyToUse} to layers {startLayer}-{endLayer}.");
-            ui.WaitForAcknowledgement();
-        }
-        private void DoApplyByVectorType() {
-            int maxLayer = editor.GetMaxLayerIndex(_activeJob) + 1;
-            if (maxLayer <= 0) {
-                ui.DisplayMessage("This job has no layers to edit.", isError: true);
-                ui.WaitForAcknowledgement();
-                return;
-            }
-            int layerNumber = ui.GetTargetLayerIndex();
-            if (layerNumber < 1 || layerNumber > maxLayer) {
-                ui.DisplayMessage($"Invalid layer number. Please enter a number between 1 and {maxLayer}.", isError: true);
-                ui.WaitForAcknowledgement();
-                return;
-            }
-            PartArea targetArea = ui.GetPartAreaChoice();
-            int? keyToUse = GetParameterKeyFromUser();
-            if (!keyToUse.HasValue) return;
-
-            editor.ApplyParametersToVectorTypeInLayer(_activeJob, layerNumber - 1, targetArea, keyToUse.Value);
-            _isModified = true;
-            ui.DisplayMessage($"Successfully applied Parameter Set ID {keyToUse} to all '{targetArea}' vectors in layer {layerNumber}.");
-            ui.WaitForAcknowledgement();
-        }
-        private void DoDiscardChanges() {
-            if (!_isModified) {
-                ui.DisplayMessage("No changes to discard.");
-                ui.WaitForAcknowledgement();
-                return;
-            }
-            if (ui.ConfirmDiscardChanges()) {
-                try {
-                    ReloadActiveJob();
-                    _isModified = false;
-                    ui.DisplayMessage("All changes have been discarded.");
-                    ui.WaitForAcknowledgement();
-                } catch (Exception ex) {
-                    ui.DisplayMessage($"Failed to reload file: {ex.Message}", isError: true);
-                    ui.WaitForAcknowledgement();
-                }
-            }
-        }
-        private bool DoQuitWithoutSaving() {
-            if (_isModified) {
-                if (ui.ConfirmQuitWithoutSaving()) {
-                    ui.DisplayMessage("Exiting without saving changes. Goodbye!");
-                    return true;
-                }
+                _ui.DisplayMessage($"Failed to load job: {ex.Message}", isError: true);
                 return false;
             }
-            ui.DisplayMessage("Exiting application. Goodbye!");
-            return true;
         }
-        private void DoVectorBlockEditing() {
-            int layerNumber = ui.GetTargetLayerIndex();
-            int maxLayer = editor.GetMaxLayerIndex(_activeJob) + 1;
-            if (layerNumber < 1 || layerNumber > maxLayer) {
-                ui.DisplayMessage($"Invalid layer number. Please enter a number between 1 and {maxLayer}.", isError: true);
-                ui.WaitForAcknowledgement();
-                return;
-            }
-            int layerIndex = layerNumber - 1;
-            var workPlane = _activeJob.WorkPlanes[layerIndex];
-            bool wasAnyBlockModified = false;
-            for (int i = 0; i < workPlane.VectorBlocks.Count; i++) {
-                var block = workPlane.VectorBlocks[i];
-                var desiredParams = ui.GetVectorBlockParametersOrSkip(layerNumber, i + 1, workPlane.VectorBlocks.Count, block);
-                if (desiredParams.HasValue) {
-                    var (power, speed) = desiredParams.Value;
-                    int keyToUse = editor.FindOrCreateParameterSetKey(_activeJob, power, speed);
-                    block.MarkingParamsKey = keyToUse;
-                    wasAnyBlockModified = true;
+
+        private void MainMenuLoop() {
+            while (true) {
+                _ui.DisplayDashboard(_sourceFilePath, _job.JobMetaData?.JobName, _job.WorkPlanes.Count, _isModified);
+                int choice = _ui.DisplayMenuAndGetChoice(_commands);
+
+                // Handle commands
+                if (choice > 0 && choice <= _commands.Count) {
+                    var command = _commands[choice - 1];
+                    bool wasModifiedByCommand = command.Execute(_job, _editor, _ui);
+                    if (wasModifiedByCommand) {
+                        _isModified = true;
+                    }
+                    continue;
+                }
+
+                // Handle meta-options (not commands)
+                int metaOption = choice - _commands.Count;
+                switch (metaOption) {
+                    case 1: // Discard Changes
+                        HandleDiscardChanges();
+                        break;
+                    case 2: // Save and Exit
+                        HandleSaveAndExit();
+                        return; // Exit loop and application
+                    case 3: // Quit Without Saving
+                        if (HandleQuit()) {
+                            return; // Exit loop and application
+                        }
+                        break;
+                    default:
+                        _ui.DisplayMessage("Invalid option selected. Please try again.", isError: true);
+                        _ui.WaitForAcknowledgement();
+                        break;
                 }
             }
-            if (wasAnyBlockModified) {
-                _isModified = true;
-                ui.DisplayMessage($"Changes applied successfully to Layer {layerNumber}.");
-            } else {
-                ui.DisplayMessage($"No changes were made to Layer {layerNumber}.");
-            }
-            ui.WaitForAcknowledgement();
         }
-        private void LoadJob() {
-            _sourceFilePath = ui.GetSourceFilePath();
-            ReloadActiveJob();
-            ui.DisplayMessage($"Successfully loaded '{_activeJob.JobMetaData.JobName}' with {_activeJob.WorkPlanes.Count} work planes.");
-            ui.WaitForAcknowledgement();
-        }
-        private void ReloadActiveJob() {
-            using (var reader = new OVFFileReader()) {
-                reader.OpenJob(_sourceFilePath);
-                _activeJob = reader.CacheJobToMemory();
-            }
-        }
-        private void DoSaveAndExit() {
+
+        private void HandleSaveAndExit() {
             string defaultPath = Path.ChangeExtension(_sourceFilePath, ".modified.ovf");
-            string outputPath = ui.GetOutputFilePath(defaultPath);
-            using (var writer = new OVFFileWriter()) {
-                writer.StartWritePartial(_activeJob, outputPath);
-                foreach (var workPlane in _activeJob.WorkPlanes) {
-                    writer.AppendWorkPlane(workPlane);
+            string outputPath = _ui.GetOutputFilePath(defaultPath);
+
+            try {
+                using (var writer = new OVFFileWriter()) {
+                    // Using SimpleJobWrite which is a robust wrapper around the partial write logic
+                    writer.SimpleJobWrite(_job, outputPath);
                 }
+                _ui.DisplayGoodbyeMessage();
+            } catch (Exception ex) {
+                _ui.DisplayMessage($"Failed to save file: {ex.Message}", isError: true);
+                _ui.WaitForAcknowledgement();
             }
-            ui.DisplayGoodbyeMessage();
+        }
+
+        private void HandleDiscardChanges() {
+            if (_isModified && _ui.ConfirmDiscardChanges()) {
+                try {
+                    _job = LoadJobFromFile(_sourceFilePath);
+                    _isModified = false;
+                    _ui.DisplayMessage("All changes have been discarded.", isError: false);
+                } catch (Exception ex) {
+                    _ui.DisplayMessage($"Failed to reload original file: {ex.Message}", isError: true);
+                }
+            } else if (!_isModified) {
+                _ui.DisplayMessage("There are no changes to discard.", isError: false);
+            }
+            _ui.WaitForAcknowledgement();
+        }
+
+        private bool HandleQuit() {
+            if (_isModified) {
+                return _ui.ConfirmQuitWithoutSaving();
+            }
+            return true; // No changes, quit freely
+        }
+
+        private Job LoadJobFromFile(string path) {
+            _ui.DisplayMessage($"Loading job from {path}...", isError: false);
+            using var reader = new OVFFileReader();
+            // OpenJob loads the shell, CacheJobToMemory loads the full data
+            reader.OpenJob(path);
+            var job = reader.CacheJobToMemory();
+            _ui.DisplayMessage("Job loaded successfully!", isError: false);
+            return job;
         }
     }
 }
