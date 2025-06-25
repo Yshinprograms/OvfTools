@@ -15,7 +15,7 @@ namespace OvfParameterModifier {
             }
             Console.WriteLine($"{commands.Count + 1}. Discard All Changes");
             Console.WriteLine($"{commands.Count + 2}. Save and Exit");
-            Console.WriteLine($"{commands.Count + 3}. Quit Without Saving");
+            Console.WriteLine($"{commands.Count + 3}. Quit Without Saving\n");
 
             int choice = GetIntegerInput("Select an option: ");
             return choice;
@@ -172,11 +172,19 @@ namespace OvfParameterModifier {
         }
 
         public int GetIntegerInput(string prompt) {
-            Console.Write(prompt);
-            if (!int.TryParse(Console.ReadLine() ?? "", out int result)) {
-                throw new UserInputException("Invalid input. Please enter a valid integer.");
+            while (true)
+            {
+                Console.Write(prompt);
+                string input = Console.ReadLine() ?? "";
+
+                if (int.TryParse(input, out int result)) {
+                    return result;
+                }
+
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Invalid input. Please enter a valid whole number.");
+                Console.ResetColor();
             }
-            return result;
         }
 
         private float GetFloatInput(string prompt) {

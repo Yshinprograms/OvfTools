@@ -14,7 +14,6 @@ namespace OvfParameterModifier {
         private Job _job;
         private bool _isModified = false;
 
-        // The new, clean list of available commands
         private readonly List<ICommand> _commands;
 
         public ParameterEditorApp(IUserInterface ui, JobEditor editor) {
@@ -30,6 +29,7 @@ namespace OvfParameterModifier {
                 new EditVectorBlocksCommand(),
                 new ChangeJobNameCommand(),
                 new AssignPartsCommand(),
+                new ApplyParametersToPartCommand(),
                 // Add future commands here!
             };
         }

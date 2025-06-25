@@ -3,6 +3,7 @@ using OpenVectorFormat;
 using OvfParameterModifier;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using PartArea = OpenVectorFormat.VectorBlock.Types.PartArea; // FIX: Added type alias for the nested enum
 
@@ -31,12 +32,57 @@ namespace OvfParameterModifier.Tests {
             }
             return job;
         }
-        private VectorBlock CreateVectorBlock(int initialKey, PartArea? area = null) {
+
+        private VectorBlock CreateVectorBlock(int initialKey, PartArea? area = null, int? partKey = null) {
             var block = new VectorBlock { MarkingParamsKey = initialKey };
             if (area.HasValue) {
                 block.LpbfMetadata = new VectorBlock.Types.LPBFMetadata { PartArea = area.Value };
             }
+            if (partKey.HasValue) {
+                block.MetaData = new VectorBlock.Types.VectorBlockMetaData { PartKey = partKey.Value };
+            }
             return block;
+        }
+        #endregion
+        #region SetJobName Tests [3 Tests]
+        [TestMethod]
+        public void SetJobName_OnExistingMetaData_UpdatesName() {
+            // Arrange
+            var job = CreateTestJob();
+            job.JobMetaData = new Job.Types.JobMetaData { JobName = "Old Name" };
+
+            // Act
+            _editor.SetJobName(job, "New Name");
+
+            // Assert
+            Assert.AreEqual("New Name", job.JobMetaData.JobName);
+        }
+
+        [TestMethod]
+        public void SetJobName_OnJobWithNullMetaData_CreatesMetaDataAndSetsName() {
+            // Arrange
+            var job = CreateTestJob();
+            job.JobMetaData = null; // This is the critical condition we're testing
+
+            // Act
+            _editor.SetJobName(job, "First Name");
+
+            // Assert
+            Assert.IsNotNull(job.JobMetaData);
+            Assert.AreEqual("First Name", job.JobMetaData.JobName);
+        }
+
+        [TestMethod]
+        public void SetJobName_WithEmptyString_SetsEmptyName() {
+            // Arrange
+            var job = CreateTestJob();
+            job.JobMetaData = new Job.Types.JobMetaData { JobName = "Old Name" };
+
+            // Act
+            _editor.SetJobName(job, "");
+
+            // Assert
+            Assert.AreEqual("", job.JobMetaData.JobName);
         }
         #endregion
         #region GetMaxLayerIndex Tests (3 Tests)
@@ -86,6 +132,21 @@ namespace OvfParameterModifier.Tests {
         }
         #endregion
         #region FindOrCreateParameterSetKey Tests (12 Tests)
+        [TestMethod]
+        public void FindOrCreateParameterSetKey_CultureInvariantName_UsesDotSeparator() {
+            // Arrange
+            // Set culture to one that uses a comma for decimals (e.g., German)
+            Thread.CurrentThread.CurrentCulture = new CultureInfo("de-DE");
+            var job = CreateTestJob();
+
+            // Act
+            int key = _editor.FindOrCreateParameterSetKey(job, 123.45f, 67.8f);
+            var newParam = job.MarkingParamsMap[key];
+
+            // Assert
+            // We assert that the name uses '.' regardless of the thread's culture
+            Assert.AreEqual("P123.45W_S67.8mmps", newParam.Name);
+        }
         [TestMethod]
         public void FindOrCreateParameterSetKey_ExactMatchExists_ReturnsExistingKeyAndDoesNotModifyMap() {
             var paramMap = new Dictionary<int, MarkingParams> { { 10, new MarkingParams { LaserPowerInW = 100f, LaserSpeedInMmPerS = 500f } } };
@@ -179,7 +240,7 @@ namespace OvfParameterModifier.Tests {
             Assert.AreEqual(-200f, newParam.LaserSpeedInMmPerS);
         }
         #endregion
-        #region ApplyParametersToLayerRange Tests (11 Tests)
+        #region ApplyParametersToLayerRange Tests (10 Tests)
         [TestMethod]
         public void ApplyParametersToLayerRange_ValidMiddleRange_UpdatesCorrectBlocksOnly() {
             var paramMap = new Dictionary<int, MarkingParams> { { 5, new MarkingParams() } };
@@ -256,7 +317,7 @@ namespace OvfParameterModifier.Tests {
             _editor.ApplyParametersToLayerRange(job, 0, 0, 1);
         }
         #endregion
-        #region ApplyParametersToVectorTypeInLayer Tests
+        #region ApplyParametersToVectorType Tests (8 Tests)
         [TestMethod]
         public void ApplyParametersToVectorType_TargetsVolume_UpdatesOnlyVolumeBlocks() {
             var job = CreateTestJob(numLayers: 1, paramMap: new Dictionary<int, MarkingParams> { { 7, new MarkingParams() } });
@@ -310,6 +371,134 @@ namespace OvfParameterModifier.Tests {
             var job = CreateTestJob(numLayers: 1);
             job.WorkPlanes[0].VectorBlocks.Add(CreateVectorBlock(1, PartArea.Volume));
             _editor.ApplyParametersToVectorTypeInLayer(job, 0, PartArea.Volume, 99);
+        }
+        [TestMethod]
+        public void ApplyParametersToVectorType_TargetsTransitionContour_UpdatesOnlyTransitionContourBlocks() {
+            // Arrange
+            var job = CreateTestJob(numLayers: 1, paramMap: new Dictionary<int, MarkingParams> { { 7, new MarkingParams() } });
+            var plane = job.WorkPlanes[0];
+            plane.VectorBlocks.Add(CreateVectorBlock(1, PartArea.Volume));
+            plane.VectorBlocks.Add(CreateVectorBlock(2, PartArea.Contour));
+            plane.VectorBlocks.Add(CreateVectorBlock(3, PartArea.TransitionContour)); // Target this one
+
+            // Act
+            _editor.ApplyParametersToVectorTypeInLayer(job, 0, PartArea.TransitionContour, 7);
+
+            // Assert
+            Assert.AreEqual(1, plane.VectorBlocks[0].MarkingParamsKey, "Volume block should NOT be updated.");
+            Assert.AreEqual(2, plane.VectorBlocks[1].MarkingParamsKey, "Contour block should NOT be updated.");
+            Assert.AreEqual(7, plane.VectorBlocks[2].MarkingParamsKey, "TransitionContour block should be updated.");
+        }
+
+        [TestMethod]
+        public void ApplyParametersToVectorType_SkipsBlocksWithNullLpbfMetadata() {
+            // Arrange
+            var job = CreateTestJob(numLayers: 1, paramMap: new Dictionary<int, MarkingParams> { { 5, new MarkingParams() } });
+            var plane = job.WorkPlanes[0];
+            var blockWithMetadata = CreateVectorBlock(1, PartArea.Volume);
+            var blockWithoutMetadata = new VectorBlock { MarkingParamsKey = 2 }; // No LPBFMetadata at all
+            plane.VectorBlocks.Add(blockWithMetadata);
+            plane.VectorBlocks.Add(blockWithoutMetadata);
+
+            // Act
+            _editor.ApplyParametersToVectorTypeInLayer(job, 0, PartArea.Volume, 5);
+
+            // Assert
+            Assert.AreEqual(5, plane.VectorBlocks[0].MarkingParamsKey, "Block with matching metadata should be updated.");
+            Assert.AreEqual(2, plane.VectorBlocks[1].MarkingParamsKey, "Block with null metadata should be SKIPPED.");
+        }
+        #endregion
+        #region ApplyParametersToPart Tests (5 Tests)
+
+        [TestMethod]
+        public void ApplyParametersToPart_HappyPath_UpdatesCorrectBlocksOnly() {
+            // --- ARRANGE ---
+            var paramMap = new Dictionary<int, MarkingParams> { { 99, new MarkingParams() } };
+            var job = CreateTestJob(numLayers: 2, paramMap: paramMap);
+
+            // Add parts to the job's manifest
+            job.PartsMap.Add(1, new Part { Name = "Part 1" });
+            job.PartsMap.Add(2, new Part { Name = "Part 2" });
+
+            // Layer 0
+            job.WorkPlanes[0].VectorBlocks.Add(CreateVectorBlock(initialKey: 10, partKey: 1)); // Should not change
+            job.WorkPlanes[0].VectorBlocks.Add(CreateVectorBlock(initialKey: 20, partKey: 2)); // Should change
+            // Layer 1
+            job.WorkPlanes[1].VectorBlocks.Add(CreateVectorBlock(initialKey: 30, partKey: 2)); // Should change
+            job.WorkPlanes[1].VectorBlocks.Add(CreateVectorBlock(initialKey: 40, partKey: 1)); // Should not change
+            job.WorkPlanes[1].VectorBlocks.Add(CreateVectorBlock(initialKey: 50)); // No part key, should not change
+
+            // --- ACT ---
+            _editor.ApplyParametersToPart(job, partKey: 2, paramKey: 99);
+
+            // --- ASSERT ---
+            // Blocks for Part 1 are UNCHANGED
+            Assert.AreEqual(10, job.WorkPlanes[0].VectorBlocks[0].MarkingParamsKey);
+            Assert.AreEqual(40, job.WorkPlanes[1].VectorBlocks[1].MarkingParamsKey);
+            // Blocks for Part 2 ARE UPDATED to 99
+            Assert.AreEqual(99, job.WorkPlanes[0].VectorBlocks[1].MarkingParamsKey);
+            Assert.AreEqual(99, job.WorkPlanes[1].VectorBlocks[0].MarkingParamsKey);
+            // Block with no part key is UNCHANGED
+            Assert.AreEqual(50, job.WorkPlanes[1].VectorBlocks[2].MarkingParamsKey);
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(KeyNotFoundException))]
+        public void ApplyParametersToPart_InvalidPartKey_ThrowsKeyNotFoundException() {
+            // --- ARRANGE ---
+            var job = CreateTestJob(numLayers: 1);
+            job.PartsMap.Add(1, new Part()); // Only Part 1 exists
+            job.MarkingParamsMap.Add(99, new MarkingParams());
+
+            // --- ACT ---
+            _editor.ApplyParametersToPart(job, partKey: 5, paramKey: 99); // Try to edit Part 5
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(KeyNotFoundException))]
+        public void ApplyParametersToPart_InvalidParamKey_ThrowsKeyNotFoundException() {
+            // --- ARRANGE ---
+            var job = CreateTestJob(numLayers: 1);
+            job.PartsMap.Add(1, new Part());
+            job.MarkingParamsMap.Add(99, new MarkingParams()); // Only Param 99 exists
+
+            // --- ACT ---
+            _editor.ApplyParametersToPart(job, partKey: 1, paramKey: 101); // Try to apply Param 101
+        }
+
+        [TestMethod]
+        public void ApplyParametersToPart_PartExistsButHasNoBlocks_DoesNotThrowAndMakesNoChanges() {
+            // --- ARRANGE ---
+            var paramMap = new Dictionary<int, MarkingParams> { { 99, new MarkingParams() } };
+            var job = CreateTestJob(numLayers: 1, paramMap: paramMap);
+            job.PartsMap.Add(1, new Part { Name = "Part 1" });
+            job.PartsMap.Add(2, new Part { Name = "Part 2" }); // Part 2 exists but no blocks are assigned to it
+            job.WorkPlanes[0].VectorBlocks.Add(CreateVectorBlock(initialKey: 10, partKey: 1));
+
+            // --- ACT ---
+            // This should execute without error
+            _editor.ApplyParametersToPart(job, partKey: 2, paramKey: 99);
+
+            // --- ASSERT ---
+            // Nothing should have changed
+            Assert.AreEqual(10, job.WorkPlanes[0].VectorBlocks[0].MarkingParamsKey);
+        }
+        [TestMethod]
+        public void ApplyParametersToPart_SkipsBlocksWithNullMetaData() {
+            // Arrange
+            var job = CreateTestJob(numLayers: 1, paramMap: new Dictionary<int, MarkingParams> { { 99, new MarkingParams() } });
+            job.PartsMap.Add(1, new Part());
+            var blockWithPartKey = CreateVectorBlock(10, partKey: 1);
+            var blockWithNullMetaData = new VectorBlock { MarkingParamsKey = 20 }; // MetaData property itself is null
+            job.WorkPlanes[0].VectorBlocks.Add(blockWithPartKey);
+            job.WorkPlanes[0].VectorBlocks.Add(blockWithNullMetaData);
+
+            // Act
+            _editor.ApplyParametersToPart(job, partKey: 1, paramKey: 99);
+
+            // Assert
+            Assert.AreEqual(99, job.WorkPlanes[0].VectorBlocks[0].MarkingParamsKey, "Block with part key should be updated.");
+            Assert.AreEqual(20, job.WorkPlanes[0].VectorBlocks[1].MarkingParamsKey, "Block with null metadata should be SKIPPED.");
         }
         #endregion
     }

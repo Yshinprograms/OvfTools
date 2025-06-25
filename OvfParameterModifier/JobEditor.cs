@@ -1,4 +1,6 @@
-﻿using OpenVectorFormat;
+﻿using System;
+using System.Globalization;
+using OpenVectorFormat;
 using PartArea = OpenVectorFormat.VectorBlock.Types.PartArea; // FIX: Added type alias for the nested enum
 
 namespace OvfParameterModifier {
@@ -48,7 +50,7 @@ namespace OvfParameterModifier {
             var newParams = new MarkingParams {
                 LaserPowerInW = power,
                 LaserSpeedInMmPerS = speed,
-                Name = $"P{power}W_S{speed}mmps"
+                Name = FormattableString.Invariant($"P{power}W_S{speed}mmps")
             };
             int newKey = GetNextAvailableParamKey(markingParamsMap);
             markingParamsMap.Add(newKey, newParams);
