@@ -8,7 +8,6 @@ using PartArea = OpenVectorFormat.VectorBlock.Types.PartArea;
 
 namespace OvfParameterModifier {
     public class ConsoleUI : IUserInterface {
-        // REPLACED GetMainMenuSelection with this new dynamic method
         public int DisplayMenuAndGetChoice(List<ICommand> commands) {
             Console.WriteLine("\n--- Main Menu ---");
             for (int i = 0; i < commands.Count; i++) {
@@ -112,14 +111,18 @@ namespace OvfParameterModifier {
             Console.ResetColor();
             Console.WriteLine("================================================================");
         }
-
         public string GetSourceFilePath() {
             string? filePath = null;
             while (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) {
                 Console.Write("\nEnter path to the SOURCE OVF file to edit: ");
-                filePath = Console.ReadLine() ?? "";
+                string rawInput = Console.ReadLine() ?? "";
+                // We trim any leading/trailing whitespace, then trim any quote characters.
+                filePath = rawInput.Trim().Trim('"');
+
+                if (string.IsNullOrEmpty(filePath)) continue;
+
                 if (!File.Exists(filePath)) {
-                    DisplayMessage("ERROR: File not found. Please try again.", isError: true);
+                    DisplayMessage($"ERROR: File not found at '{filePath}'. Please try again.", isError: true);
                 }
             }
             return filePath;

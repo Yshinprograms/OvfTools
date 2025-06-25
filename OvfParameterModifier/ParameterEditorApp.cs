@@ -29,7 +29,8 @@ namespace OvfParameterModifier {
                 new ApplyByVectorTypeInLayerCommand(),
                 new EditVectorBlocksCommand(),
                 new ChangeJobNameCommand(),
-                // Add future commands like "new AssignPartsCommand()" here!
+                new AssignPartsCommand(),
+                // Add future commands here!
             };
         }
 
@@ -56,7 +57,6 @@ namespace OvfParameterModifier {
                 _ui.DisplayDashboard(_sourceFilePath, _job.JobMetaData?.JobName, _job.WorkPlanes.Count, _isModified);
                 int choice = _ui.DisplayMenuAndGetChoice(_commands);
 
-                // Handle commands
                 if (choice > 0 && choice <= _commands.Count) {
                     var command = _commands[choice - 1];
                     bool wasModifiedByCommand = command.Execute(_job, _editor, _ui);
@@ -66,18 +66,17 @@ namespace OvfParameterModifier {
                     continue;
                 }
 
-                // Handle meta-options (not commands)
                 int metaOption = choice - _commands.Count;
                 switch (metaOption) {
-                    case 1: // Discard Changes
+                    case 1:
                         HandleDiscardChanges();
                         break;
-                    case 2: // Save and Exit
+                    case 2:
                         HandleSaveAndExit();
-                        return; // Exit loop and application
-                    case 3: // Quit Without Saving
+                        return;
+                    case 3:
                         if (HandleQuit()) {
-                            return; // Exit loop and application
+                            return;
                         }
                         break;
                     default:
@@ -123,7 +122,7 @@ namespace OvfParameterModifier {
             if (_isModified) {
                 return _ui.ConfirmQuitWithoutSaving();
             }
-            return true; // No changes, quit freely
+            return true; 
         }
 
         private Job LoadJobFromFile(string path) {

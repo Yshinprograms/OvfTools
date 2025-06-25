@@ -9,10 +9,10 @@
 
   <ItemGroup>
     <Folder Include="Exceptions\" />
-    <Folder Include="Services\" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="NetTopologySuite" Version="2.6.0" />
     <PackageReference Include="OpenVectorFormat" Version="1.7.1" />
   </ItemGroup>
 
