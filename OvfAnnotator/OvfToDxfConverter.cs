@@ -82,6 +82,8 @@ namespace OvfAnnotator {
             currentPartData.Geometry.AddRange(geometry);
             currentPartData.Bbox.Union(minX, minY);
             currentPartData.Bbox.Union(maxX, maxY);
+
+            partData[partKey] = currentPartData;
         }
 
         private (List<EntityObject> Geometry, SimpleBounds Bbox, AciColor Color, Layer Layer) GetOrAddPartData(Dictionary<int, (List<EntityObject> Geometry, SimpleBounds Bbox, AciColor Color, Layer Layer)> partData, int partKey, DxfDocument dxf, ColorGenerator colorGenerator) {
@@ -149,13 +151,14 @@ namespace OvfAnnotator {
                         if (x > maxX) maxX = x;
                         if (y > maxY) maxY = y;
                     }
-                    if (vertices.Any())
+                    if (vertices.Count >= 2)
                         entities.Add(new Polyline2D(vertices) { Color = color });
+
                     break;
 
                 case VectorBlock.VectorDataOneofCase.Hatches:
                     var hatchPoints = block.Hatches.Points;
-                    for (int i = 0; i < hatchPoints.Count; i += 4) {
+                    for (int i = 0; i + 3 < hatchPoints.Count; i += 4) {
                         var start = new Vector2(hatchPoints[i], hatchPoints[i + 1]);
                         var end = new Vector2(hatchPoints[i + 2], hatchPoints[i + 3]);
                         entities.Add(new Line(start, end) { Color = color });

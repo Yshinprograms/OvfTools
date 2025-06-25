@@ -25,6 +25,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OvfAnnotator", "OvfAnnotato
 		{F39B041E-02CD-4737-8D76-64D9425E73ED} = {F39B041E-02CD-4737-8D76-64D9425E73ED}
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OvfAnnotatorTests", "OvfAnnotatorTests\OvfAnnotatorTests.csproj", "{0A05B87F-9A7A-4CE1-BFC6-B24B5F9421E4}"
+	ProjectSection(ProjectDependencies) = postProject
+		{F0B9E031-1D9C-448D-A19A-8FCC617BC3B7} = {F0B9E031-1D9C-448D-A19A-8FCC617BC3B7}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -51,6 +56,10 @@ Global
 		{F0B9E031-1D9C-448D-A19A-8FCC617BC3B7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F0B9E031-1D9C-448D-A19A-8FCC617BC3B7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F0B9E031-1D9C-448D-A19A-8FCC617BC3B7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0A05B87F-9A7A-4CE1-BFC6-B24B5F9421E4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0A05B87F-9A7A-4CE1-BFC6-B24B5F9421E4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0A05B87F-9A7A-4CE1-BFC6-B24B5F9421E4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0A05B87F-9A7A-4CE1-BFC6-B24B5F9421E4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -12,7 +12,7 @@ namespace OvfAnnotator {
         public string LayerRange { get; set; }
 
         [Option('t', "textHeight", Required = false, Default = 1.0, HelpText = "Optional: Sets the text height for the block ID annotations in the DXF file.")]
-        public double TextHeight { get; set; }
+        public double TextHeight { get; set; } = 1.0;
 
         [Option('s', "simpleId", Required = false, Default = false, HelpText = "Optional: If present, displays the block annotation as a simple number (e.g., '12') instead of 'ID: 12'.")]
         public bool SimpleId { get; set; }
