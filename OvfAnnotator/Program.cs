@@ -34,17 +34,14 @@ public class Program {
             var jobShell = reader.JobShell;
             int totalLayersInFile = jobShell.NumWorkPlanes;
 
-            // --- NEW: Parse the layer range ---
             (int startLayer, int endLayer) = ParseLayerRange(options.LayerRange, totalLayersInFile);
             int layersToProcessCount = endLayer - startLayer + 1;
             Console.WriteLine($"Found {totalLayersInFile} layers. Will process layers {startLayer} through {endLayer}.");
 
             var converter = new OvfToDxfConverter();
 
-            // --- NEW: Summary Report Counters ---
             int totalBlocksProcessed = 0;
 
-            // --- Processing Stage with Progress Bar! ---
             var progressBarOptions = new ProgressBarOptions {
                 ForegroundColor = ConsoleColor.Yellow,
                 BackgroundColor = ConsoleColor.DarkGray,
@@ -61,15 +58,13 @@ public class Program {
                     string outputFileName = $"{inputFileName}_Layer_{i}.dxf";
                     string fullOutputPath = Path.Combine(outputDirectory, outputFileName);
 
-                    var dxfDocument = converter.Convert(workPlane);
+                    var dxfDocument = converter.Convert(workPlane, options);
                     dxfDocument.Save(fullOutputPath);
 
-                    // Update the progress bar!
                     pbar.Tick($"Processed Layer {i} -> {outputFileName}");
                 }
             }
 
-            // --- Final Summary Report ---
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("\n=================================================");
             Console.WriteLine("             Processing Complete!");
@@ -87,7 +82,6 @@ public class Program {
         }
     }
 
-    // Helper to keep path logic clean
     private static string GetOutputDirectory(Options options) {
         if (!string.IsNullOrWhiteSpace(options.OutputDirectory)) {
             return options.OutputDirectory;
@@ -98,27 +92,34 @@ public class Program {
         return Path.Combine(inputDirectory, $"{inputFileName}_DXF_Output");
     }
 
-    // NEW HELPER: Our brilliant layer range parser!
-    private static (int, int) ParseLayerRange(string rangeString, int maxLayers) {
-        // Default: process all layers (0-indexed)
+    private static (int, int) ParseLayerRange(string rangeString, int totalLayersInFile) {
+        // If the user provides no input, we process everything.
+        // The internal representation for "everything" is 0 to the last index.
         if (string.IsNullOrWhiteSpace(rangeString)) {
-            return (0, maxLayers - 1);
+            return (0, totalLayersInFile - 1);
         }
 
-        // Case for a single number (e.g., --layers "5")
+        // Case 1: User enters a single number, e.g., "--layers 5"
         if (int.TryParse(rangeString, out int singleLayer)) {
-            if (singleLayer < 0 || singleLayer >= maxLayers) throw new ArgumentOutOfRangeException($"Layer index {singleLayer} is out of the valid range (0-{maxLayers - 1}).");
-            return (singleLayer, singleLayer);
+            if (singleLayer < 1 || singleLayer > totalLayersInFile) {
+                throw new ArgumentOutOfRangeException($"Layer index {singleLayer} is out of the valid range (1-{totalLayersInFile}).");
+            }
+            return (singleLayer - 1, singleLayer - 1);
         }
 
-        // Case for a range (e.g., --layers "10-20")
+        // Case 2: User enters a range, e.g., "--layers 10-20"
         var parts = rangeString.Split('-');
         if (parts.Length == 2 && int.TryParse(parts[0], out int start) && int.TryParse(parts[1], out int end)) {
-            if (start > end) throw new ArgumentException("Start layer cannot be greater than end layer in the specified range.");
-            if (start < 0 || end >= maxLayers) throw new ArgumentOutOfRangeException($"Layer range {start}-{end} is out of the valid range (0-{maxLayers - 1}).");
-            return (start, end);
+            if (start > end) {
+                throw new ArgumentException("Start layer cannot be greater than end layer in the specified range.");
+            }
+            if (start < 1 || end > totalLayersInFile) {
+                throw new ArgumentOutOfRangeException($"Layer range {start}-{end} is out of the valid range (1-{totalLayersInFile}).");
+            }
+            // Convert both start and end to 0-based indices.
+            return (start - 1, end - 1);
         }
 
-        throw new FormatException($"The layer range format '{rangeString}' is invalid. Please use a format like \"10-20\" or \"5\".");
+        throw new FormatException($"The layer range format '{rangeString}' is invalid. Please use a 1-based format like \"10-20\" or \"5\".");
     }
 }
