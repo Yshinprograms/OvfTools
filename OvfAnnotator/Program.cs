@@ -44,7 +44,7 @@ public class Program {
 
             var progressBarOptions = new ProgressBarOptions {
                 ForegroundColor = ConsoleColor.Yellow,
-                BackgroundColor = ConsoleColor.DarkGray,
+                BackgroundColor = ConsoleColor.Gray,
                 ProgressCharacter = '█',
                 ProgressBarOnBottom = true
             };

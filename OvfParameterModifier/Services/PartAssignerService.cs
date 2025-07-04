@@ -33,6 +33,11 @@ namespace OvfParameterModifier.Services {
             var ntsPolygon = CreateNtsPolygonFromVectorBlock(contourBlock);
             if (ntsPolygon == null || !ntsPolygon.IsValid) return; // Skip invalid geometry
 
+            // Ensure MetaData exists before trying to set PartKey
+            if (contourBlock.MetaData == null) {
+                contourBlock.MetaData = new VectorBlock.Types.VectorBlockMetaData();
+            }
+
             // Try to find a parent part by checking for intersection
             foreach (var parentPart in previousLayerParts) {
                 if (parentPart.Value.Intersects(ntsPolygon)) {

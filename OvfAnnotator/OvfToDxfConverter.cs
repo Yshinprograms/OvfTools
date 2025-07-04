@@ -142,7 +142,7 @@ namespace OvfAnnotator {
                 case VectorBlock.VectorDataOneofCase.LineSequence:
                     var points = block.LineSequence.Points;
                     var vertices = new List<Polyline2DVertex>();
-                    for (int i = 0; i < points.Count; i += 2) {
+                    for (int i = 0; i + 1 < points.Count; i += 2) {
                         double x = points[i];
                         double y = points[i + 1];
                         vertices.Add(new Polyline2DVertex(new Vector2(x, y)));

@@ -77,6 +77,14 @@ namespace OvfAnnotatorTests {
             wp.VectorBlocks.Add(new VectorBlock { LineSequence = new VectorBlock.Types.LineSequence { Points = { 0, 0, 1, 1 } } });
             return wp;
         }
+        private WorkPlane CreateWorkPlaneWithOddPointLineSequence() {
+            var wp = new WorkPlane();
+            // 5 points is an odd number. It should create two valid polyline vertices and ignore the last point.
+            wp.VectorBlocks.Add(new VectorBlock {
+                LineSequence = new VectorBlock.Types.LineSequence { Points = { 0, 0, 1, 1, 2, 2, 3, 3, 4 } }
+            });
+            return wp;
+        }
         #endregion
 
         #region "Color by Part" Tests (Default Behavior)
@@ -178,6 +186,24 @@ namespace OvfAnnotatorTests {
         #endregion
 
         #region Edge Case Tests
+        [TestMethod]
+        public void Convert_WithLineSequenceOddPoints_HandlesGracefullyWithoutCrashing() {
+            // ARRANGE
+            var converter = new OvfToDxfConverter();
+            var workPlane = CreateWorkPlaneWithOddPointLineSequence();
+            var options = new Options { ColorByBlock = true };
+
+            // ACT
+            var resultDxf = converter.Convert(workPlane, options);
+
+            // ASSERT
+            // It should successfully create 1 polyline from the first 4 points (2 vertices).
+            // And it should create 1 annotation.
+            Assert.AreEqual(2, resultDxf.Entities.All.Count(), "Should create one polyline and one annotation.");
+            var polyline = resultDxf.Entities.Polylines2D.FirstOrDefault();
+            Assert.IsNotNull(polyline);
+            Assert.AreEqual(4, polyline.Vertexes.Count, "Polyline should contain 4 vertices from the valid data pairs.");
+        }
 
         [TestMethod]
         public void Convert_WithEmptyWorkPlane_ReturnsEmptyDxfWithoutCrashing() {
